@@ -4,9 +4,12 @@ export interface Task {
     description: string;
     status: TaskStatus;
     estimate?: number;
-    assignee?: User;
-    reporter?: User;
+    assignee?: TaskUser;
+    assignee_detail?: TaskUser;
+    reporter?: TaskUser;
+    reporter_detail?: TaskUser;
     tags: Tag[];
+    tags_detail?: Tag[];
     created_at: string;
     updated_at: string;
 }
@@ -18,7 +21,7 @@ export enum TaskStatus {
     DONE = 'DONE'
 }
 
-export interface User {
+export interface TaskUser {
     id: number;
     username: string;
     email: string;

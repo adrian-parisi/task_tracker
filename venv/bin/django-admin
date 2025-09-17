@@ -1,4 +1,4 @@
-#!/Users/axp/dev/interviews/task_tracker/venv/bin/python3
+#!/Users/axp/dev/interviews/task_tracker/venv/bin/python3.10
 # -*- coding: utf-8 -*-
 import re
 import sys

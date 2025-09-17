@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container, AppBar, Toolbar, Typography, Box } from '@mui/material';
-import { Assignment } from '@mui/icons-material';
+import { CssBaseline, Container, Box, CircularProgress } from '@mui/material';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LoginForm from './components/LoginForm';
+import Header from './components/Header';
 import TaskList from './components/TaskList';
 import TaskDetail from './components/TaskDetail';
-import { Task } from './types/task';
 
 const theme = createTheme({
   palette: {
@@ -17,7 +18,8 @@ const theme = createTheme({
   },
 });
 
-function App() {
+function AppContent() {
+  const { user, loading, login } = useAuth();
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
 
@@ -31,30 +33,48 @@ function App() {
     setSelectedTaskId('');
   };
 
+  if (loading) {
+    return (
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return <LoginForm onLogin={login} />;
+  }
+
+  return (
+    <Box sx={{ flexGrow: 1 }}>
+      <Header />
+      
+      <Container maxWidth="xl" sx={{ mt: 2 }}>
+        {currentView === 'list' ? (
+          <TaskList />
+        ) : (
+          <TaskDetail 
+            taskId={selectedTaskId}
+            onBack={handleBackToList}
+          />
+        )}
+      </Container>
+    </Box>
+  );
+}
+
+function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ flexGrow: 1 }}>
-        <AppBar position="static">
-          <Toolbar>
-            <Assignment sx={{ mr: 2 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              AI Task Tools
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        
-        <Container maxWidth="xl" sx={{ mt: 2 }}>
-          {currentView === 'list' ? (
-            <TaskList />
-          ) : (
-            <TaskDetail 
-              taskId={selectedTaskId}
-              onBack={handleBackToList}
-            />
-          )}
-        </Container>
-      </Box>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

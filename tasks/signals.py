@@ -1,6 +1,7 @@
 """
 Django signals for automatic activity logging.
 """
+from typing import Any, Dict
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
@@ -9,11 +10,11 @@ from .services import ActivityService
 
 
 # Store original task state before updates
-_task_pre_save_state = {}
+_task_pre_save_state: Dict[str, Task | None] = {}
 
 
 @receiver(pre_save, sender=Task)
-def task_pre_save(sender, instance, **kwargs):
+def task_pre_save(sender: type[Task], instance: Task, **kwargs: Any) -> None:
     """
     Capture task state before save to detect changes.
     """
@@ -28,7 +29,7 @@ def task_pre_save(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Task)
-def task_post_save(sender, instance, created, **kwargs):
+def task_post_save(sender: type[Task], instance: Task, created: bool, **kwargs: Any) -> None:
     """
     Log task activities after save.
     """

@@ -1,11 +1,12 @@
 import uuid
+from typing import Any, Dict
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
 
-def validate_task_title(value):
+def validate_task_title(value: str) -> None:
     """Validate that task title is not empty or just whitespace."""
     if not value or not value.strip():
         raise ValidationError('Task title cannot be empty or just whitespace.')
@@ -13,7 +14,7 @@ def validate_task_title(value):
         raise ValidationError('Task title must be at least 3 characters long.')
 
 
-def validate_task_estimate(value):
+def validate_task_estimate(value: int | None) -> None:
     """Validate task estimate business rules."""
     if value is not None and value < 0:
         raise ValidationError('Task estimate cannot be negative.')
@@ -21,7 +22,7 @@ def validate_task_estimate(value):
         raise ValidationError('Task estimate cannot exceed 100 points.')
 
 
-def validate_tag_name(value):
+def validate_tag_name(value: str) -> None:
     """Validate tag name format and content."""
     if not value or not value.strip():
         raise ValidationError('Tag name cannot be empty or just whitespace.')
@@ -70,7 +71,7 @@ class Tag(models.Model):
         ]
         ordering = ['name']
     
-    def clean(self):
+    def clean(self) -> None:
         """Perform model-level validation."""
         super().clean()
         
@@ -80,12 +81,12 @@ class Tag(models.Model):
             # Normalize the name by stripping whitespace
             self.name = self.name.strip()
     
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save to ensure validation is called."""
         self.full_clean()
         super().save(*args, **kwargs)
     
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -132,7 +133,7 @@ class Task(models.Model):
         ]
         ordering = ['-updated_at']
     
-    def clean(self):
+    def clean(self) -> None:
         """Perform model-level validation."""
         super().clean()
         
@@ -150,12 +151,12 @@ class Task(models.Model):
                 'estimate': 'Tasks marked as DONE must have an estimate.'
             })
     
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save to ensure validation is called."""
         self.full_clean()
         super().save(*args, **kwargs)
     
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title
 
 
@@ -174,5 +175,5 @@ class TaskActivity(models.Model):
         ]
         ordering = ['-created_at']
     
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.task.title} - {self.type}"

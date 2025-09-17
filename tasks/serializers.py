@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Task, Tag, TaskStatus
@@ -11,7 +12,7 @@ class TagSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
         read_only_fields = ['id']
     
-    def validate_name(self, value):
+    def validate_name(self, value: str) -> str:
         """Validate tag name with case-insensitive uniqueness check."""
         if not value or not value.strip():
             raise serializers.ValidationError("Tag name cannot be empty or just whitespace.")
@@ -108,11 +109,11 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
-    def get_activity_count(self, obj):
+    def get_activity_count(self, obj: Task) -> int:
         """Return the count of activities for this task."""
         return obj.activities.count()
     
-    def validate_title(self, value):
+    def validate_title(self, value: str) -> str:
         """Validate task title is not empty (requirement 8.4)."""
         if not value or not value.strip():
             raise serializers.ValidationError("Task title cannot be empty or just whitespace.")
@@ -128,7 +129,7 @@ class TaskSerializer(serializers.ModelSerializer):
         
         return stripped_title
     
-    def validate_estimate(self, value):
+    def validate_estimate(self, value: int | None) -> int | None:
         """Validate estimate is not negative (requirement 8.5)."""
         if value is not None:
             if value < 0:
@@ -137,7 +138,7 @@ class TaskSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Task estimate cannot exceed 100 points.")
         return value
     
-    def validate_status(self, value):
+    def validate_status(self, value: str) -> str:
         """Validate status is a valid choice."""
         if value not in [choice[0] for choice in TaskStatus.choices]:
             valid_choices = [choice[0] for choice in TaskStatus.choices]
@@ -146,27 +147,27 @@ class TaskSerializer(serializers.ModelSerializer):
             )
         return value
     
-    def validate_description(self, value):
+    def validate_description(self, value: str | None) -> str | None:
         """Validate task description length."""
         if value and len(value) > 5000:
             raise serializers.ValidationError("Task description cannot exceed 5000 characters.")
         return value
     
-    def validate_assignee(self, value):
+    def validate_assignee(self, value: User | None) -> User | None:
         """Validate assignee exists and is active."""
         if value is not None:
             if not value.is_active:
                 raise serializers.ValidationError("Cannot assign task to inactive user.")
         return value
     
-    def validate_reporter(self, value):
+    def validate_reporter(self, value: User | None) -> User | None:
         """Validate reporter exists and is active."""
         if value is not None:
             if not value.is_active:
                 raise serializers.ValidationError("Reporter must be an active user.")
         return value
     
-    def validate(self, attrs):
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
         """Perform cross-field validation."""
         # Business rule: Task cannot be marked as DONE without an estimate
         status = attrs.get('status')
@@ -186,14 +187,14 @@ class TaskSerializer(serializers.ModelSerializer):
         
         return attrs
     
-    def create(self, validated_data):
+    def create(self, validated_data: Dict[str, Any]) -> Task:
         """Create a new task with proper tag handling."""
         tags_data = validated_data.pop('tags', [])
         task = Task.objects.create(**validated_data)
         task.tags.set(tags_data)
         return task
     
-    def update(self, instance, validated_data):
+    def update(self, instance: Task, validated_data: Dict[str, Any]) -> Task:
         """Update task with proper tag handling."""
         tags_data = validated_data.pop('tags', None)
         

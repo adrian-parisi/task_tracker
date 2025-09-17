@@ -25,9 +25,10 @@ import {
     Edit,
     Delete,
     FilterList,
-    Assignment
+    Assignment,
+    AutoAwesome
 } from '@mui/icons-material';
-import { Task, TaskStatus } from '../types/task';
+import { Task, TaskStatus, SmartSummaryResponse } from '../types/task';
 import { TaskService } from '../services/taskService';
 import TaskForm from './TaskForm';
 
@@ -39,6 +40,11 @@ const TaskList: React.FC = () => {
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+    const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+    const [summaryTask, setSummaryTask] = useState<Task | null>(null);
+    const [summary, setSummary] = useState<string>('');
+    const [summaryLoading, setSummaryLoading] = useState(false);
+    const [summaryError, setSummaryError] = useState<string>('');
     const [filters, setFilters] = useState({
         status: '',
         assignee: '',
@@ -84,7 +90,7 @@ const TaskList: React.FC = () => {
 
     const confirmDeleteTask = async () => {
         if (!taskToDelete) return;
-        
+
         try {
             await TaskService.deleteTask(taskToDelete.id);
             setTasks(tasks.filter(task => task.id !== taskToDelete.id));
@@ -96,10 +102,28 @@ const TaskList: React.FC = () => {
         }
     };
 
+    const handleSmartSummary = async (task: Task) => {
+        setSummaryTask(task);
+        setSummaryLoading(true);
+        setSummaryError('');
+        setSummary('');
+        setShowSummaryDialog(true);
+
+        try {
+            const response = await TaskService.getSmartSummary(task.id);
+            setSummary(response.summary);
+        } catch (err) {
+            setSummaryError('Failed to generate summary');
+            console.error('Failed to generate summary:', err);
+        } finally {
+            setSummaryLoading(false);
+        }
+    };
+
     const handleTaskSaved = (savedTask: Task) => {
         if (selectedTask) {
             // Update existing task
-            setTasks(tasks.map(task => 
+            setTasks(tasks.map(task =>
                 task.id === savedTask.id ? savedTask : task
             ));
         } else {
@@ -168,7 +192,7 @@ const TaskList: React.FC = () => {
                                 <Select
                                     value={filters.status}
                                     label="Status"
-                                    onChange={(e) => setFilters({...filters, status: e.target.value})}
+                                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                                 >
                                     <MenuItem value="">All</MenuItem>
                                     <MenuItem value="TODO">To Do</MenuItem>
@@ -184,7 +208,7 @@ const TaskList: React.FC = () => {
                                 size="small"
                                 label="Assignee"
                                 value={filters.assignee}
-                                onChange={(e) => setFilters({...filters, assignee: e.target.value})}
+                                onChange={(e) => setFilters({ ...filters, assignee: e.target.value })}
                             />
                         </Grid>
                         <Grid item xs={12} sm={4}>
@@ -193,7 +217,7 @@ const TaskList: React.FC = () => {
                                 size="small"
                                 label="Tag"
                                 value={filters.tag}
-                                onChange={(e) => setFilters({...filters, tag: e.target.value})}
+                                onChange={(e) => setFilters({ ...filters, tag: e.target.value })}
                             />
                         </Grid>
                     </Grid>
@@ -211,6 +235,13 @@ const TaskList: React.FC = () => {
                                         {task.title}
                                     </Typography>
                                     <Box>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleSmartSummary(task)}
+                                            title="Smart Summary"
+                                        >
+                                            <AutoAwesome />
+                                        </IconButton>
                                         <IconButton size="small" onClick={() => handleEditTask(task)}>
                                             <Edit />
                                         </IconButton>
@@ -219,31 +250,46 @@ const TaskList: React.FC = () => {
                                         </IconButton>
                                     </Box>
                                 </Box>
-                                
+
                                 <Typography variant="body2" color="text.secondary" mb={2} noWrap>
                                     {task.description || 'No description'}
                                 </Typography>
-                                
+
                                 <Box display="flex" gap={1} mb={2} flexWrap="wrap">
-                                    <Chip 
+                                    <Chip
                                         label={task.status.replace('_', ' ')}
                                         color={getStatusColor(task.status)}
                                         size="small"
                                     />
                                     {task.estimate && (
-                                        <Chip 
+                                        <Chip
                                             label={`${task.estimate} pts`}
                                             variant="outlined"
                                             size="small"
                                         />
                                     )}
                                 </Box>
-                                
-                                {task.assignee && (
+
+                                {/* Tags */}
+                                {((task.tags_detail || task.tags) && (task.tags_detail || task.tags).length > 0) && (
+                                    <Box display="flex" gap={1} mb={2} flexWrap="wrap">
+                                        {(task.tags_detail || task.tags).map((tag) => (
+                                            <Chip
+                                                key={tag.id}
+                                                label={tag.name}
+                                                variant="outlined"
+                                                size="small"
+                                                color="secondary"
+                                            />
+                                        ))}
+                                    </Box>
+                                )}
+
+                                {(task.assignee_detail || task.assignee) && (
                                     <Box display="flex" alignItems="center" gap={1}>
                                         <Assignment fontSize="small" color="action" />
                                         <Typography variant="body2" color="text.secondary">
-                                            {task.assignee.username}
+                                            {(task.assignee_detail || task.assignee)?.username}
                                         </Typography>
                                     </Box>
                                 )}
@@ -294,6 +340,46 @@ const TaskList: React.FC = () => {
                     <Button onClick={confirmDeleteTask} color="error" variant="contained">
                         Delete
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Smart Summary Dialog */}
+            <Dialog
+                open={showSummaryDialog}
+                onClose={() => setShowSummaryDialog(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <AutoAwesome color="primary" />
+                        Smart Summary - {summaryTask?.title}
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    {summaryLoading && (
+                        <Box display="flex" alignItems="center" gap={2} py={3}>
+                            <CircularProgress size={24} />
+                            <Typography>Generating smart summary...</Typography>
+                        </Box>
+                    )}
+
+                    {summaryError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {summaryError}
+                        </Alert>
+                    )}
+
+                    {summary && !summaryLoading && (
+                        <Box>
+                            <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+                                {summary}
+                            </Typography>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowSummaryDialog(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
         </Box>

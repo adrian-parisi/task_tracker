@@ -1,7 +1,7 @@
 """
 Services for task management functionality.
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 import statistics
 from django.contrib.auth.models import User
 from django.db.models import QuerySet, Q
@@ -20,7 +20,7 @@ class ActivityService:
     }
     
     @staticmethod
-    def log_task_creation(task: Task, actor: Optional[User] = None) -> TaskActivity:
+    def log_task_creation(task: Task, actor: User | None = None) -> TaskActivity:
         """
         Log task creation activity.
         
@@ -44,7 +44,7 @@ class ActivityService:
     def log_field_changes(
         task: Task, 
         changes: Dict[str, Dict[str, Any]], 
-        actor: Optional[User] = None
+        actor: User | None = None
     ) -> list[TaskActivity]:
         """
         Log field changes for a task, creating separate activities for each tracked field.

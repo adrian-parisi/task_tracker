@@ -6,10 +6,9 @@ import {
     CircularProgress, 
     Alert,
     Box,
-    Paper,
-    Divider
+    Paper
 } from '@mui/material';
-import { Edit, Description } from '@mui/icons-material';
+import { Edit } from '@mui/icons-material';
 import { SmartRewriteResponse } from '../types/task';
 
 interface RewriteDisplayProps {

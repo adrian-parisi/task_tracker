@@ -109,14 +109,31 @@ const EstimateDisplay: React.FC<EstimateDisplayProps> = ({ estimate, loading, er
                 {estimate.similar_task_ids && estimate.similar_task_ids.length > 0 && (
                     <Box>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
-                            <strong>Similar Tasks:</strong>
+                            <strong>Similar Tasks ({estimate.similar_task_ids.length}):</strong>
                         </Typography>
                         <List dense>
-                            {estimate.similar_task_ids.map(id => (
-                                <ListItem key={id} sx={{ py: 0 }}>
+                            {estimate.similar_task_ids.map((id, index) => (
+                                <ListItem key={id} sx={{ py: 0.5, px: 0 }}>
                                     <ListItemText>
-                                        <Link href={`/tasks/${id}`} underline="hover">
-                                            Task {id}
+                                        <Link 
+                                            href={`/tasks/${id}`} 
+                                            underline="hover"
+                                            sx={{ 
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                '&:hover': {
+                                                    color: 'primary.main'
+                                                }
+                                            }}
+                                        >
+                                            <Chip 
+                                                label={`#${index + 1}`} 
+                                                size="small" 
+                                                variant="outlined"
+                                                sx={{ minWidth: 40 }}
+                                            />
+                                            Task {id.substring(0, 8)}...
                                         </Link>
                                     </ListItemText>
                                 </ListItem>

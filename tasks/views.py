@@ -1,6 +1,8 @@
+from typing import Any
 from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth.models import User
 from .models import Task, Tag
@@ -26,13 +28,13 @@ class TaskViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-updated_at']  # Default ordering
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[TaskSerializer | TaskListSerializer]:
         """Use optimized serializer for list view."""
         if self.action == 'list':
             return TaskListSerializer
         return TaskSerializer
     
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Apply custom filtering for tags."""
         queryset = super().get_queryset()
         
@@ -62,7 +64,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         return queryset
     
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Create a new task (requirement 4.1)."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -77,7 +79,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         response_serializer = TaskSerializer(task)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Update a task (requirement 4.2)."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -90,7 +92,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         response_serializer = TaskSerializer(task)
         return Response(response_serializer.data)
     
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Delete a task with hard delete (requirement 4.5)."""
         instance = self.get_object()
         instance.delete()
@@ -114,7 +116,7 @@ class TagViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     ordering = ['name']  # Default ordering by name
     
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Create a new tag with proper validation."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -123,7 +125,7 @@ class TagViewSet(viewsets.ModelViewSet):
         tag = serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Update a tag with proper validation."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -134,7 +136,7 @@ class TagViewSet(viewsets.ModelViewSet):
         tag = serializer.save()
         return Response(serializer.data)
     
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Delete a tag."""
         instance = self.get_object()
         instance.delete()

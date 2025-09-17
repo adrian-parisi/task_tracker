@@ -16,7 +16,7 @@ class AIService:
     """Service for AI-powered task tools with deterministic mocked responses."""
     
     @staticmethod
-    def generate_summary(task: Task, user: User = None) -> str:
+    def generate_summary(task: Task, user: User | None = None) -> str:
         """
         Generate a human-readable summary of the task lifecycle based on activities.
         
@@ -55,7 +55,7 @@ class AIService:
             return "Unable to generate summary at this time."
     
     @staticmethod
-    def generate_rewrite(task: Task, user: User = None) -> Dict[str, str]:
+    def generate_rewrite(task: Task, user: User | None = None) -> Dict[str, str]:
         """
         Generate an enhanced task description with user story format and acceptance criteria.
         
@@ -151,7 +151,7 @@ class AIService:
         return summary.strip()
     
     @staticmethod
-    def _generate_deterministic_rewrite(task: Task, user: User = None) -> Dict[str, str]:
+    def _generate_deterministic_rewrite(task: Task, user: User | None = None) -> Dict[str, str]:
         """
         Generate deterministic rewrite with user story format.
         
@@ -241,7 +241,7 @@ class AIService:
         }
     
     @staticmethod
-    def _log_ai_invocation(tool_type: str, task_id: str, user_id: int = None, response_time_ms: int = 0):
+    def _log_ai_invocation(tool_type: str, task_id: str, user_id: int | None = None, response_time_ms: int = 0) -> None:
         """
         Log AI tool invocation with telemetry data.
         

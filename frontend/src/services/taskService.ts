@@ -7,6 +7,18 @@ import {
     SmartRewriteResponse 
 } from '../types/task';
 
+// Custom error class for better error handling
+export class TaskServiceError extends Error {
+    constructor(
+        message: string,
+        public status?: number,
+        public details?: any
+    ) {
+        super(message);
+        this.name = 'TaskServiceError';
+    }
+}
+
 export class TaskService {
     static async getTasks(params?: {
         status?: string;
@@ -14,42 +26,129 @@ export class TaskService {
         tag?: string;
         page?: number;
     }): Promise<TaskListResponse> {
-        const response = await apiClient.get('/tasks/', { params });
-        return response.data;
+        try {
+            const response = await apiClient.get('/tasks/', { params });
+            return response.data;
+        } catch (error: any) {
+            throw new TaskServiceError(
+                'Failed to fetch tasks',
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     static async getTask(id: string): Promise<Task> {
-        const response = await apiClient.get(`/tasks/${id}/`);
-        return response.data;
+        try {
+            const response = await apiClient.get(`/tasks/${id}/`);
+            return response.data;
+        } catch (error: any) {
+            const message = error.response?.status === 404 
+                ? 'Task not found' 
+                : 'Failed to fetch task';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     static async createTask(task: Partial<Task>): Promise<Task> {
-        const response = await apiClient.post('/tasks/', task);
-        return response.data;
+        try {
+            const response = await apiClient.post('/tasks/', task);
+            return response.data;
+        } catch (error: any) {
+            const message = error.response?.status === 400 
+                ? 'Invalid task data' 
+                : 'Failed to create task';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     static async updateTask(id: string, task: Partial<Task>): Promise<Task> {
-        const response = await apiClient.patch(`/tasks/${id}/`, task);
-        return response.data;
+        try {
+            const response = await apiClient.patch(`/tasks/${id}/`, task);
+            return response.data;
+        } catch (error: any) {
+            const message = error.response?.status === 404 
+                ? 'Task not found' 
+                : error.response?.status === 400
+                ? 'Invalid task data'
+                : 'Failed to update task';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     static async deleteTask(id: string): Promise<void> {
-        await apiClient.delete(`/tasks/${id}/`);
+        try {
+            await apiClient.delete(`/tasks/${id}/`);
+        } catch (error: any) {
+            const message = error.response?.status === 404 
+                ? 'Task not found' 
+                : 'Failed to delete task';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     // AI Tool Methods
     static async getSmartSummary(taskId: string): Promise<SmartSummaryResponse> {
-        const response = await apiClient.get(`/tasks/${taskId}/smart-summary/`);
-        return response.data;
+        try {
+            const response = await apiClient.get(`/tasks/${taskId}/smart-summary/`);
+            return response.data;
+        } catch (error: any) {
+            const message = error.response?.status === 404 
+                ? 'Task not found for summary generation' 
+                : 'Failed to generate smart summary';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     static async getSmartEstimate(taskId: string): Promise<SmartEstimateResponse> {
-        const response = await apiClient.get(`/tasks/${taskId}/smart-estimate/`);
-        return response.data;
+        try {
+            const response = await apiClient.get(`/tasks/${taskId}/smart-estimate/`);
+            return response.data;
+        } catch (error: any) {
+            const message = error.response?.status === 404 
+                ? 'Task not found for estimate calculation' 
+                : 'Failed to calculate smart estimate';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 
     static async getSmartRewrite(taskId: string): Promise<SmartRewriteResponse> {
-        const response = await apiClient.post(`/tasks/${taskId}/smart-rewrite/`);
-        return response.data;
+        try {
+            const response = await apiClient.post(`/tasks/${taskId}/smart-rewrite/`);
+            return response.data;
+        } catch (error: any) {
+            const message = error.response?.status === 404 
+                ? 'Task not found for rewrite generation' 
+                : 'Failed to generate smart rewrite';
+            throw new TaskServiceError(
+                message,
+                error.response?.status,
+                error.response?.data
+            );
+        }
     }
 }

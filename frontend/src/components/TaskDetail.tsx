@@ -7,10 +7,8 @@ import {
     Button,
     Chip,
     Grid,
-    Divider,
     Alert,
     CircularProgress,
-    Paper,
     IconButton
 } from '@mui/material';
 import {
@@ -24,7 +22,7 @@ import {
     ArrowBack
 } from '@mui/icons-material';
 import { Task, SmartSummaryResponse, SmartEstimateResponse, SmartRewriteResponse, TaskStatus } from '../types/task';
-import { TaskService } from '../services/taskService';
+import { TaskService, TaskServiceError } from '../services/taskService';
 import SummaryDisplay from './SummaryDisplay';
 import EstimateDisplay from './EstimateDisplay';
 import RewriteDisplay from './RewriteDisplay';
@@ -66,7 +64,10 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
             const taskData = await TaskService.getTask(taskId);
             setTask(taskData);
         } catch (err) {
-            setError('Failed to load task');
+            const errorMessage = err instanceof TaskServiceError 
+                ? err.message 
+                : 'Failed to load task';
+            setError(errorMessage);
             console.error('Failed to load task:', err);
         } finally {
             setLoading(false);
@@ -80,7 +81,10 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
             const summaryData = await TaskService.getSmartSummary(taskId);
             setSummary(summaryData);
         } catch (err) {
-            setAiErrors(prev => ({ ...prev, summary: 'Failed to generate summary' }));
+            const errorMessage = err instanceof TaskServiceError 
+                ? err.message 
+                : 'Failed to generate summary';
+            setAiErrors(prev => ({ ...prev, summary: errorMessage }));
             console.error('Failed to get smart summary:', err);
         } finally {
             setAiLoading(prev => ({ ...prev, summary: false }));
@@ -94,7 +98,10 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
             const estimateData = await TaskService.getSmartEstimate(taskId);
             setEstimate(estimateData);
         } catch (err) {
-            setAiErrors(prev => ({ ...prev, estimate: 'Failed to calculate estimate' }));
+            const errorMessage = err instanceof TaskServiceError 
+                ? err.message 
+                : 'Failed to calculate estimate';
+            setAiErrors(prev => ({ ...prev, estimate: errorMessage }));
             console.error('Failed to get smart estimate:', err);
         } finally {
             setAiLoading(prev => ({ ...prev, estimate: false }));
@@ -108,7 +115,10 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
             const rewriteData = await TaskService.getSmartRewrite(taskId);
             setRewrite(rewriteData);
         } catch (err) {
-            setAiErrors(prev => ({ ...prev, rewrite: 'Failed to generate rewrite' }));
+            const errorMessage = err instanceof TaskServiceError 
+                ? err.message 
+                : 'Failed to generate rewrite';
+            setAiErrors(prev => ({ ...prev, rewrite: errorMessage }));
             console.error('Failed to get smart rewrite:', err);
         } finally {
             setAiLoading(prev => ({ ...prev, rewrite: false }));
