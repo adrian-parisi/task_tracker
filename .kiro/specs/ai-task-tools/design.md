@@ -335,88 +335,161 @@ def test_smart_estimate_no_similar_tasks(users):
 - Pagination behavior under load
 - Memory usage for large datasets
 
-## Frontend Integration Contracts
+## Frontend Architecture (TypeScript React)
+
+### Component Structure
+```
+src/
+├── components/
+│   ├── TaskList.tsx           # Task listing with filters
+│   ├── TaskDetail.tsx         # Task detail view with AI tools
+│   ├── TaskForm.tsx           # Create/edit task form
+│   ├── SummaryDisplay.tsx     # Smart summary results
+│   ├── EstimateDisplay.tsx    # Smart estimate results
+│   └── RewriteDisplay.tsx     # Smart rewrite results
+├── services/
+│   ├── apiClient.ts           # Axios configuration
+│   └── taskService.ts         # Task API methods
+├── types/
+│   └── task.ts                # TypeScript interfaces
+└── App.tsx                    # Main application component
+```
+
+### TypeScript Interfaces
+
+#### Task Types
+```typescript
+export interface Task {
+    id: string;
+    title: string;
+    description: string;
+    status: TaskStatus;
+    estimate?: number;
+    assignee?: User;
+    reporter?: User;
+    tags: Tag[];
+    created_at: string;
+    updated_at: string;
+}
+
+export enum TaskStatus {
+    TODO = 'TODO',
+    IN_PROGRESS = 'IN_PROGRESS',
+    BLOCKED = 'BLOCKED',
+    DONE = 'DONE'
+}
+
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+}
+
+export interface Tag {
+    id: number;
+    name: string;
+}
+```
+
+#### AI Tool Response Types
+```typescript
+export interface SmartSummaryResponse {
+    summary: string;
+}
+
+export interface SmartEstimateResponse {
+    suggested_points: number;
+    confidence: number;
+    similar_task_ids: string[];
+    rationale: string;
+}
+
+export interface SmartRewriteResponse {
+    title: string;
+    user_story: string;
+}
+```
 
 ### API Client Configuration
-```javascript
-const apiClient = axios.create({
+```typescript
+import axios, { AxiosInstance } from 'axios';
+
+const apiClient: AxiosInstance = axios.create({
     baseURL: '/api/',
     headers: {
         'Content-Type': 'application/json'
     },
     withCredentials: true
 });
+
+// Add CSRF token interceptor
+apiClient.interceptors.request.use((config) => {
+    const csrfToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    if (csrfToken) {
+        config.headers['X-CSRFToken'] = csrfToken;
+    }
+    
+    return config;
+});
+
+export default apiClient;
 ```
 
-### Component Integration Points
+### Task Service Layer
+```typescript
+import apiClient from './apiClient';
+import { Task, SmartSummaryResponse, SmartEstimateResponse, SmartRewriteResponse } from '../types/task';
 
-#### Task Detail Actions
-```javascript
-// Smart Summary Button
-const handleSmartSummary = async (taskId) => {
-    const response = await apiClient.get(`/tasks/${taskId}/smart-summary/`);
-    setSummary(response.data.summary);
-};
+export class TaskService {
+    static async getTasks(params?: {
+        status?: string;
+        assignee?: number;
+        tag?: string;
+        page?: number;
+    }): Promise<{ results: Task[]; count: number }> {
+        const response = await apiClient.get('/tasks/', { params });
+        return response.data;
+    }
 
-// Smart Estimate Button  
-const handleSmartEstimate = async (taskId) => {
-    const response = await apiClient.get(`/tasks/${taskId}/smart-estimate/`);
-    setEstimate(response.data);
-};
+    static async getTask(id: string): Promise<Task> {
+        const response = await apiClient.get(`/tasks/${id}/`);
+        return response.data;
+    }
 
-// Smart Rewrite Button
-const handleSmartRewrite = async (taskId) => {
-    const response = await apiClient.post(`/tasks/${taskId}/smart-rewrite/`);
-    setRewrite(response.data);
-};
-```
+    static async createTask(task: Partial<Task>): Promise<Task> {
+        const response = await apiClient.post('/tasks/', task);
+        return response.data;
+    }
 
-### Response Rendering
+    static async updateTask(id: string, task: Partial<Task>): Promise<Task> {
+        const response = await apiClient.patch(`/tasks/${id}/`, task);
+        return response.data;
+    }
 
-#### Smart Summary Display
-```javascript
-const SummaryDisplay = ({ summary }) => (
-    <div className="smart-summary">
-        <h4>Task Summary</h4>
-        <p>{summary}</p>
-    </div>
-);
-```
+    static async deleteTask(id: string): Promise<void> {
+        await apiClient.delete(`/tasks/${id}/`);
+    }
 
-#### Smart Estimate Display
-```javascript
-const EstimateDisplay = ({ estimate }) => (
-    <div className="smart-estimate">
-        <h4>Suggested Estimate</h4>
-        <p>Points: {estimate.suggested_points}</p>
-        <p>Confidence: {(estimate.confidence * 100).toFixed(0)}%</p>
-        <p>Rationale: {estimate.rationale}</p>
-        {estimate.similar_task_ids.length > 0 && (
-            <div>
-                <h5>Similar Tasks:</h5>
-                <ul>
-                    {estimate.similar_task_ids.map(id => (
-                        <li key={id}>
-                            <Link to={`/tasks/${id}`}>{id}</Link>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        )}
-    </div>
-);
-```
+    // AI Tool Methods
+    static async getSmartSummary(taskId: string): Promise<SmartSummaryResponse> {
+        const response = await apiClient.get(`/tasks/${taskId}/smart-summary/`);
+        return response.data;
+    }
 
-#### Smart Rewrite Display
-```javascript
-const RewriteDisplay = ({ rewrite }) => (
-    <div className="smart-rewrite">
-        <h4>Enhanced Description</h4>
-        <h5>Title: {rewrite.title}</h5>
-        <pre className="user-story">{rewrite.user_story}</pre>
-    </div>
-);
-```
+    static async getSmartEstimate(taskId: string): Promise<SmartEstimateResponse> {
+        const response = await apiClient.get(`/tasks/${taskId}/smart-estimate/`);
+        return response.data;
+    }
+
+    static async getSmartRewrite(taskId: string): Promise<SmartRewriteResponse> {
+        const response = await apiClient.post(`/tasks/${taskId}/smart-rewrite/`);
+        return response.data;
+    }
+}
 
 ## Security Considerations
 
