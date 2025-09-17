@@ -17,8 +17,10 @@ describe('AI Tools Integration', () => {
         description: 'Create a secure login system for the application',
         status: TaskStatus.IN_PROGRESS,
         estimate: 8,
-        assignee: { id: 1, username: 'developer', email: 'dev@example.com' },
-        reporter: { id: 2, username: 'pm', email: 'pm@example.com' },
+        assignee: 1,
+        reporter: 2,
+        assignee_detail: { id: 1, username: 'developer', first_name: 'Dev', last_name: 'User', display_name: 'Dev User' },
+        reporter_detail: { id: 2, username: 'pm', first_name: 'Project', last_name: 'Manager', display_name: 'Project Manager' },
         tags: [
             { id: 1, name: 'backend' },
             { id: 2, name: 'security' }

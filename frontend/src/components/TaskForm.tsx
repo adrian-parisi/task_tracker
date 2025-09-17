@@ -10,10 +10,15 @@ import {
     Alert,
     Grid,
     Chip,
-    Autocomplete
+    Autocomplete,
+    CircularProgress,
+    Typography,
+    Paper
 } from '@mui/material';
-import { Task, TaskStatus, Tag, TaskUser } from '../types/task';
+import { Psychology } from '@mui/icons-material';
+import { Task, TaskStatus, Tag, SmartEstimateResponse, User } from '../types/task';
 import { TaskService } from '../services/taskService';
+import UserAutocomplete from './UserAutocomplete';
 
 interface TaskFormProps {
     task?: Task | null;
@@ -27,20 +32,29 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
         description: '',
         status: TaskStatus.TODO,
         estimate: '',
-        assignee: undefined as TaskUser | undefined,
+        assignee: null as User | null,
+        reporter: null as User | null,
         tags: [] as Tag[]
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>('');
+    const [estimateLoading, setEstimateLoading] = useState(false);
+    const [estimateError, setEstimateError] = useState<string>('');
+    const [smartEstimate, setSmartEstimate] = useState<SmartEstimateResponse | null>(null);
 
     useEffect(() => {
         if (task) {
+            // Use the user details directly since TaskUser is now the same as User
+            const assigneeUser = task.assignee_detail || null;
+            const reporterUser = task.reporter_detail || null;
+
             setFormData({
                 title: task.title,
                 description: task.description,
                 status: task.status,
                 estimate: task.estimate?.toString() || '',
-                assignee: task.assignee || undefined,
+                assignee: assigneeUser,
+                reporter: reporterUser,
                 tags: task.tags || []
             });
         }
@@ -58,15 +72,15 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
             setLoading(true);
             setError('');
 
-            const taskData: Partial<Task> = {
+            const taskData: any = {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
                 status: formData.status,
                 estimate: formData.estimate ? parseInt(formData.estimate) : undefined,
-                // For now, don't send assignee and tags to avoid validation errors
-                // In a real app, you'd need to handle user lookup and tag creation
-                assignee: undefined,
-                tags: []
+                // Send user IDs for assignee and reporter (backend expects primary keys)
+                assignee: formData.assignee?.id || null,
+                reporter: formData.reporter?.id || null,
+                tags: formData.tags.map(tag => tag.id)
             };
 
             let savedTask: Task;
@@ -90,6 +104,41 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
             ...prev,
             [field]: value
         }));
+        
+        // Clear smart estimate when title or description changes
+        if (field === 'title' || field === 'description') {
+            setSmartEstimate(null);
+            setEstimateError('');
+        }
+    };
+
+    const handleSmartEstimate = async () => {
+        if (!task) {
+            setEstimateError('Smart Estimate is only available for existing tasks');
+            return;
+        }
+
+        try {
+            setEstimateLoading(true);
+            setEstimateError('');
+            const response = await TaskService.getSmartEstimate(task.id);
+            setSmartEstimate(response);
+            
+            // Auto-fill the estimate field with the suggested value
+            setFormData(prev => ({
+                ...prev,
+                estimate: response.suggested_points.toString()
+            }));
+        } catch (err) {
+            setEstimateError('Failed to generate smart estimate');
+            console.error('Failed to generate smart estimate:', err);
+        } finally {
+            setEstimateLoading(false);
+        }
+    };
+
+    const canUseSmartEstimate = () => {
+        return task && formData.title.trim().length > 0 && formData.description.trim().length > 0;
     };
 
     return (
@@ -141,36 +190,73 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        label="Estimate (points)"
-                        type="number"
-                        value={formData.estimate}
-                        onChange={(e) => handleInputChange('estimate', e.target.value)}
-                        inputProps={{ min: 0 }}
+                    <Box>
+                        <Box display="flex" gap={1} alignItems="flex-end">
+                            <TextField
+                                fullWidth
+                                label="Estimate (points)"
+                                type="number"
+                                value={formData.estimate}
+                                onChange={(e) => handleInputChange('estimate', e.target.value)}
+                                inputProps={{ min: 0 }}
+                            />
+                            <Button
+                                variant="outlined"
+                                startIcon={estimateLoading ? <CircularProgress size={16} /> : <Psychology />}
+                                onClick={handleSmartEstimate}
+                                disabled={!canUseSmartEstimate() || estimateLoading}
+                                sx={{ minWidth: 140, height: 56 }}
+                            >
+                                {estimateLoading ? 'Calculating...' : 'Smart Estimate'}
+                            </Button>
+                        </Box>
+                        
+                        {estimateError && (
+                            <Alert severity="error" sx={{ mt: 1 }}>
+                                {estimateError}
+                            </Alert>
+                        )}
+                        
+                        {smartEstimate && (
+                            <Paper elevation={1} sx={{ mt: 2, p: 2, bgcolor: 'primary.50' }}>
+                                <Typography variant="body2" color="primary" gutterBottom>
+                                    <strong>AI Suggestion: {smartEstimate.suggested_points} points</strong>
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    Confidence: {(smartEstimate.confidence * 100).toFixed(0)}%
+                                </Typography>
+                                {smartEstimate.rationale && (
+                                    <Typography variant="body2" color="text.secondary">
+                                        {smartEstimate.rationale}
+                                    </Typography>
+                                )}
+                                {smartEstimate.similar_task_ids && smartEstimate.similar_task_ids.length > 0 && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                        Based on {smartEstimate.similar_task_ids.length} similar task(s)
+                                    </Typography>
+                                )}
+                            </Paper>
+                        )}
+                    </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                    <UserAutocomplete
+                        value={formData.assignee}
+                        onChange={(user) => handleInputChange('assignee', user)}
+                        label="Assignee"
+                        placeholder="Search and select assignee..."
+                        helperText="Select a user to assign this task to"
                     />
                 </Grid>
 
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        label="Assignee (username)"
-                        value={formData.assignee?.username || ''}
-                        onChange={(e) => {
-                            const username = e.target.value;
-                            if (username) {
-                                // For now, create a simple user object
-                                // In a real app, this would be an autocomplete with user search
-                                handleInputChange('assignee', {
-                                    id: 0,
-                                    username: username,
-                                    email: `${username}@example.com`
-                                });
-                            } else {
-                                handleInputChange('assignee', undefined);
-                            }
-                        }}
-                        helperText="Enter username to assign task"
+                <Grid item xs={12} sm={6}>
+                    <UserAutocomplete
+                        value={formData.reporter}
+                        onChange={(user) => handleInputChange('reporter', user)}
+                        label="Reporter"
+                        placeholder="Search and select reporter..."
+                        helperText="Select the user who reported this task"
                     />
                 </Grid>
 

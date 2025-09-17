@@ -4,7 +4,9 @@ Django signals for automatic activity logging.
 from typing import Any, Dict
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from .models import Task
 from .services import ActivityService
 

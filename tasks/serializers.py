@@ -1,6 +1,6 @@
 from typing import Any, Dict
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from accounts.models import CustomUser
 from .models import Task, Tag, TaskStatus
 
 
@@ -50,10 +50,12 @@ class TagSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Basic user serializer for task relationships."""
     
+    display_name = serializers.ReadOnlyField()
+    
     class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name']
-        read_only_fields = ['id', 'username', 'first_name', 'last_name']
+        model = CustomUser
+        fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
+        read_only_fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -78,13 +80,13 @@ class TaskSerializer(serializers.ModelSerializer):
     
     # Write-only fields for relationships
     assignee = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
+        queryset=CustomUser.objects.all(),
         required=False,
         allow_null=True,
         write_only=True
     )
     reporter = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
+        queryset=CustomUser.objects.all(),
         required=False,
         allow_null=True,
         write_only=True
@@ -153,14 +155,14 @@ class TaskSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Task description cannot exceed 5000 characters.")
         return value
     
-    def validate_assignee(self, value: User | None) -> User | None:
+    def validate_assignee(self, value: CustomUser | None) -> CustomUser | None:
         """Validate assignee exists and is active."""
         if value is not None:
             if not value.is_active:
                 raise serializers.ValidationError("Cannot assign task to inactive user.")
         return value
     
-    def validate_reporter(self, value: User | None) -> User | None:
+    def validate_reporter(self, value: CustomUser | None) -> CustomUser | None:
         """Validate reporter exists and is active."""
         if value is not None:
             if not value.is_active:

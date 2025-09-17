@@ -47,8 +47,10 @@ describe('TaskDetail', () => {
         description: 'Test task description',
         status: TaskStatus.TODO,
         estimate: 5,
-        assignee: { id: 1, username: 'testuser', email: 'test@example.com' },
-        reporter: { id: 2, username: 'reporter', email: 'reporter@example.com' },
+        assignee: 1,
+        reporter: 2,
+        assignee_detail: { id: 1, username: 'testuser', first_name: 'Test', last_name: 'User', display_name: 'Test User' },
+        reporter_detail: { id: 2, username: 'reporter', first_name: 'Reporter', last_name: 'User', display_name: 'Reporter User' },
         tags: [
             { id: 1, name: 'frontend' },
             { id: 2, name: 'urgent' }

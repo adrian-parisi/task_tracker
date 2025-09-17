@@ -3,7 +3,9 @@ Services for task management functionality.
 """
 from typing import Dict, Any, List
 import statistics
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.db.models import QuerySet, Q
 from .models import Task, TaskActivity, ActivityType
 
@@ -161,8 +163,8 @@ class SimilarityService:
         Returns:
             QuerySet of similar tasks, ordered by updated_at descending
         """
-        # Exclude the task itself from results
-        similar_tasks = Task.objects.exclude(id=task.id)
+        # Exclude the task itself from results and optimize with select_related
+        similar_tasks = Task.objects.exclude(id=task.id).select_related('assignee')
         
         # Build query conditions for similarity matching
         similarity_conditions = Q()
@@ -171,8 +173,8 @@ class SimilarityService:
         if task.assignee:
             similarity_conditions |= Q(assignee=task.assignee)
         
-        # 2. Overlapping tags
-        task_tags = list(task.tags.all())
+        # 2. Overlapping tags - optimize by prefetching tags only when needed
+        task_tags = list(task.tags.values_list('id', flat=True))
         if task_tags:
             similarity_conditions |= Q(tags__in=task_tags)
         
@@ -188,7 +190,10 @@ class SimilarityService:
         
         # Apply similarity conditions and order by updated_at descending
         if similarity_conditions:
-            return similar_tasks.filter(similarity_conditions).distinct().order_by('-updated_at')[:limit]
+            return (similar_tasks
+                   .filter(similarity_conditions)
+                   .distinct()
+                   .order_by('-updated_at')[:limit])
         else:
             # If no similarity conditions, return empty queryset
             return Task.objects.none()

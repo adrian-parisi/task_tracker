@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-alq=$d0vhy^vlskqk6!19^3h9a#(^3(=znwmp%h22i#+o)-29+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'django_filters',
+    'accounts',
     'tasks',
     'ai_tools',
 ]
@@ -154,3 +155,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.CustomUser'

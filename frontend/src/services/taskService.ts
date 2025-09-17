@@ -23,7 +23,6 @@ export class TaskService {
     static async getTasks(params?: {
         status?: string;
         assignee?: number;
-        tag?: string;
         page?: number;
     }): Promise<TaskListResponse> {
         try {

@@ -3,8 +3,24 @@ Pytest fixtures for AI Tools tests.
 Provides reusable test data and setup for consistent testing.
 """
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+
+User = get_user_model()
 from tasks.models import Task, TaskActivity, ActivityType, Tag, TaskStatus
+
+
+@pytest.fixture
+def api_client():
+    """Provide an API client for testing."""
+    return APIClient()
+
+
+@pytest.fixture
+def authenticated_client(api_client, users):
+    """Provide an authenticated API client using the dev user."""
+    api_client.force_authenticate(user=users['dev'])
+    return api_client
 
 
 @pytest.fixture

@@ -221,22 +221,22 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
                                 </Grid>
 
                                 <Grid item xs={12} sm={6}>
-                                    {task.assignee && (
+                                    {task.assignee_detail && (
                                         <Box display="flex" alignItems="center" gap={1} mb={2}>
                                             <Person color="action" />
                                             <Typography variant="body2" color="text.secondary">
-                                                Assignee: {task.assignee.username}
+                                                Assignee: {task.assignee_detail.username}
                                             </Typography>
                                         </Box>
                                     )}
                                 </Grid>
 
                                 <Grid item xs={12} sm={6}>
-                                    {task.reporter && (
+                                    {task.reporter_detail && (
                                         <Box display="flex" alignItems="center" gap={1} mb={2}>
                                             <Assignment color="action" />
                                             <Typography variant="body2" color="text.secondary">
-                                                Reporter: {task.reporter.username}
+                                                Reporter: {task.reporter_detail.username}
                                             </Typography>
                                         </Box>
                                     )}

@@ -11,7 +11,6 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    TextField,
     IconButton,
     Dialog,
     DialogTitle,
@@ -25,12 +24,16 @@ import {
     Edit,
     Delete,
     FilterList,
-    Assignment,
-    AutoAwesome
+    AutoAwesome,
+    EditNote,
+    Person,
+    Flag
 } from '@mui/icons-material';
-import { Task, TaskStatus, SmartSummaryResponse } from '../types/task';
+import { Task, TaskStatus, SmartRewriteResponse } from '../types/task';
 import { TaskService } from '../services/taskService';
+import { User } from '../types/task';
 import TaskForm from './TaskForm';
+import UserAutocomplete from './UserAutocomplete';
 
 const TaskList: React.FC = () => {
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -45,10 +48,14 @@ const TaskList: React.FC = () => {
     const [summary, setSummary] = useState<string>('');
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState<string>('');
+    const [showRewriteDialog, setShowRewriteDialog] = useState(false);
+    const [rewriteTask, setRewriteTask] = useState<Task | null>(null);
+    const [rewrite, setRewrite] = useState<SmartRewriteResponse | null>(null);
+    const [rewriteLoading, setRewriteLoading] = useState(false);
+    const [rewriteError, setRewriteError] = useState<string>('');
     const [filters, setFilters] = useState({
         status: '',
-        assignee: '',
-        tag: ''
+        assignee: null as User | null
     });
 
     useEffect(() => {
@@ -60,8 +67,8 @@ const TaskList: React.FC = () => {
             setLoading(true);
             setError('');
             const apiFilters = {
-                ...filters,
-                assignee: filters.assignee ? parseInt(filters.assignee) : undefined
+                status: filters.status || undefined,
+                assignee: filters.assignee?.id || undefined
             };
             const response = await TaskService.getTasks(apiFilters);
             setTasks(response.results);
@@ -117,6 +124,24 @@ const TaskList: React.FC = () => {
             console.error('Failed to generate summary:', err);
         } finally {
             setSummaryLoading(false);
+        }
+    };
+
+    const handleSmartRewrite = async (task: Task) => {
+        setRewriteTask(task);
+        setRewriteLoading(true);
+        setRewriteError('');
+        setRewrite(null);
+        setShowRewriteDialog(true);
+
+        try {
+            const response = await TaskService.getSmartRewrite(task.id);
+            setRewrite(response);
+        } catch (err) {
+            setRewriteError('Failed to generate rewrite');
+            console.error('Failed to generate rewrite:', err);
+        } finally {
+            setRewriteLoading(false);
         }
     };
 
@@ -186,7 +211,7 @@ const TaskList: React.FC = () => {
                         <Typography variant="h6">Filters</Typography>
                     </Box>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid item xs={12} sm={6}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Status</InputLabel>
                                 <Select
@@ -202,25 +227,44 @@ const TaskList: React.FC = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                label="Assignee"
+                        <Grid item xs={12} sm={6}>
+                            <UserAutocomplete
                                 value={filters.assignee}
-                                onChange={(e) => setFilters({ ...filters, assignee: e.target.value })}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                label="Tag"
-                                value={filters.tag}
-                                onChange={(e) => setFilters({ ...filters, tag: e.target.value })}
+                                onChange={(user) => setFilters({ ...filters, assignee: user })}
+                                label="Assignee"
+                                placeholder="Filter by assignee..."
                             />
                         </Grid>
                     </Grid>
+                    
+                    {/* Active Filters Display */}
+                    {(filters.status || filters.assignee) && (
+                        <Box mt={2}>
+                            <Typography variant="body2" color="text.secondary" mb={1}>
+                                Active Filters:
+                            </Typography>
+                            <Box display="flex" gap={1} flexWrap="wrap">
+                                {filters.status && (
+                                    <Chip
+                                        label={`Status: ${filters.status.replace('_', ' ')}`}
+                                        size="small"
+                                        onDelete={() => setFilters({ ...filters, status: '' })}
+                                        color="primary"
+                                        variant="outlined"
+                                    />
+                                )}
+                                {filters.assignee && (
+                                    <Chip
+                                        label={`Assignee: ${filters.assignee.display_name || filters.assignee.username}`}
+                                        size="small"
+                                        onDelete={() => setFilters({ ...filters, assignee: null })}
+                                        color="primary"
+                                        variant="outlined"
+                                    />
+                                )}
+                            </Box>
+                        </Box>
+                    )}
                 </CardContent>
             </Card>
 
@@ -241,6 +285,13 @@ const TaskList: React.FC = () => {
                                             title="Smart Summary"
                                         >
                                             <AutoAwesome />
+                                        </IconButton>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleSmartRewrite(task)}
+                                            title="Smart Rewrite"
+                                        >
+                                            <EditNote />
                                         </IconButton>
                                         <IconButton size="small" onClick={() => handleEditTask(task)}>
                                             <Edit />
@@ -285,14 +336,27 @@ const TaskList: React.FC = () => {
                                     </Box>
                                 )}
 
-                                {(task.assignee_detail || task.assignee) && (
-                                    <Box display="flex" alignItems="center" gap={1}>
-                                        <Assignment fontSize="small" color="action" />
-                                        <Typography variant="body2" color="text.secondary">
-                                            {(task.assignee_detail || task.assignee)?.username}
-                                        </Typography>
-                                    </Box>
-                                )}
+                                {/* Assignee Information */}
+                                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                    <Person fontSize="small" color="action" />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Assignee: {task.assignee_detail 
+                                            ? (task.assignee_detail.display_name || task.assignee_detail.username)
+                                            : 'Unassigned'
+                                        }
+                                    </Typography>
+                                </Box>
+
+                                {/* Reporter Information */}
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Flag fontSize="small" color="action" />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Reporter: {task.reporter_detail 
+                                            ? (task.reporter_detail.display_name || task.reporter_detail.username)
+                                            : 'No reporter'
+                                        }
+                                    </Typography>
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -380,6 +444,113 @@ const TaskList: React.FC = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setShowSummaryDialog(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Smart Rewrite Dialog */}
+            <Dialog 
+                open={showRewriteDialog} 
+                onClose={() => setShowRewriteDialog(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <EditNote color="primary" />
+                        Smart Rewrite - {rewriteTask?.title}
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    {rewriteLoading && (
+                        <Box display="flex" alignItems="center" gap={2} py={3}>
+                            <CircularProgress size={24} />
+                            <Typography>Generating enhanced task description...</Typography>
+                        </Box>
+                    )}
+                    
+                    {rewriteError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {rewriteError}
+                        </Alert>
+                    )}
+                    
+                    {rewrite && !rewriteLoading && (
+                        <Box>
+                            {rewrite.title && (
+                                <Box mb={3}>
+                                    <Typography variant="h6" gutterBottom color="primary">
+                                        Enhanced Title:
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ 
+                                        p: 2, 
+                                        bgcolor: 'grey.50', 
+                                        borderRadius: 1,
+                                        fontWeight: 'medium'
+                                    }}>
+                                        {rewrite.title}
+                                    </Typography>
+                                </Box>
+                            )}
+                            
+                            {rewrite.user_story && (
+                                <Box>
+                                    <Typography variant="h6" gutterBottom color="primary">
+                                        User Story & Acceptance Criteria:
+                                    </Typography>
+                                    <Typography 
+                                        component="pre" 
+                                        variant="body2" 
+                                        sx={{ 
+                                            p: 2, 
+                                            bgcolor: 'grey.50', 
+                                            borderRadius: 1,
+                                            whiteSpace: 'pre-wrap',
+                                            fontFamily: 'monospace',
+                                            lineHeight: 1.6,
+                                            fontSize: '0.875rem'
+                                        }}
+                                    >
+                                        {rewrite.user_story}
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowRewriteDialog(false)}>Close</Button>
+                    {rewrite && !rewriteLoading && (
+                        <Button 
+                            variant="contained" 
+                            onClick={async () => {
+                                if (!rewriteTask || !rewrite) return;
+                                
+                                try {
+                                    // Update the task with the rewritten content
+                                    const updatedTask = await TaskService.updateTask(rewriteTask.id, {
+                                        title: rewrite.title,
+                                        description: rewrite.user_story
+                                    });
+                                    
+                                    // Update the task in the local state
+                                    setTasks(tasks.map(task => 
+                                        task.id === updatedTask.id ? updatedTask : task
+                                    ));
+                                    
+                                    // Close the dialog
+                                    setShowRewriteDialog(false);
+                                    
+                                    // Show success feedback (optional)
+                                    // You could add a success snackbar here
+                                } catch (err) {
+                                    setRewriteError('Failed to apply rewrite');
+                                    console.error('Failed to apply rewrite:', err);
+                                }
+                            }}
+                        >
+                            Apply Rewrite
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
         </Box>

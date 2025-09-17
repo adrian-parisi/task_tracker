@@ -1,5 +1,13 @@
 # Implementation Plan
 
+## Project Rules
+- Do not use `get_user_model()` - always import and use `CustomUser` directly from `accounts.models`
+- Organize models in `models/` package with one module per model/component
+- No `models.py` file - use `models/` package structure instead
+- Organize model tests in `models/tests/` directory with one test module per model
+- Use specific test module names: `test_validators.py`, `test_choices.py`, `test_tag.py`, `test_task.py`, `test_activity.py`
+- Use pytest style for all tests: `pytest.raises()`, `assert` statements, `@pytest.fixture`, `@pytest.mark.parametrize`
+
 - [x] 1. Set up Django project structure and core models
   - Create Django app structure for tasks and AI tools
   - Implement Task, TaskActivity, and Tag models with proper relationships
@@ -68,7 +76,7 @@
   - Write tests for error handling and validation scenarios
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 10. Optimize database performance
+- [x] 10. Optimize database performance
   - Add database indexes for status and assignee fields
   - Create index for task updated_at for similarity queries
   - Add index for activity task_id and created_at

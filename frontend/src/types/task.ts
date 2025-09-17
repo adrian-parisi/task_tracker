@@ -4,10 +4,10 @@ export interface Task {
     description: string;
     status: TaskStatus;
     estimate?: number;
-    assignee?: TaskUser;
-    assignee_detail?: TaskUser;
-    reporter?: TaskUser;
-    reporter_detail?: TaskUser;
+    assignee?: number; // User ID for write operations
+    assignee_detail?: TaskUser | null; // Full user object for read operations
+    reporter?: number; // User ID for write operations
+    reporter_detail?: TaskUser | null; // Full user object for read operations
     tags: Tag[];
     tags_detail?: Tag[];
     created_at: string;
@@ -21,11 +21,17 @@ export enum TaskStatus {
     DONE = 'DONE'
 }
 
-export interface TaskUser {
+// User interface for user management (matches backend User model)
+export interface User {
     id: number;
     username: string;
-    email: string;
+    first_name: string;
+    last_name: string;
+    display_name: string;
 }
+
+// TaskUser is an alias for User to maintain backward compatibility
+export type TaskUser = User;
 
 export interface Tag {
     id: number;

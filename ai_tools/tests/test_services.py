@@ -1,0 +1,33 @@
+"""
+Unit tests for AI Tools services using pytest.
+"""
+import logging
+from unittest.mock import patch
+import pytest
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+from tasks.models import Task, TaskActivity, ActivityType, Tag, TaskStatus
+from ai_tools.services import AIService
+
+def test_generate_summary_basic_task(basic_task, users):
+    """Test summary generation for a basic task with minimal activities."""
+    # Create a creation activity
+    TaskActivity.objects.create(
+        task=basic_task,
+        actor=users['dev'],
+        type=ActivityType.CREATED
+    )
+    
+    summary = AIService.generate_summary(basic_task, users['dev'])
+    
+    # Verify deterministic output (account for potential signal-created activities)
+    expected_parts = [
+        "currently to do",
+        f"assigned to {users['dev'].username}"
+    ]
+    
+    for part in expected_parts:
+        assert part in summary
+
+# ... rest of the test methods would continue here

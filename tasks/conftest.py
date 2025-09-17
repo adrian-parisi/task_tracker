@@ -1,0 +1,259 @@
+"""
+Pytest fixtures for Tasks app tests.
+Provides reusable test data and setup for consistent testing.
+"""
+import pytest
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+
+User = get_user_model()
+from tasks.models import Task, Tag, TaskStatus
+
+
+@pytest.fixture
+def api_client():
+    """Provide an API client for testing."""
+    return APIClient()
+
+
+@pytest.fixture
+def users(db):
+    """Create test users for various testing scenarios."""
+    active_user = User.objects.create_user(
+        username='testuser1',
+        email='test1@example.com',
+        password='testpass123',
+        is_active=True
+    )
+    inactive_user = User.objects.create_user(
+        username='testuser2',
+        email='test2@example.com',
+        password='testpass123',
+        is_active=False
+    )
+    dev_user = User.objects.create_user(
+        username='testdev',
+        email='dev@test.com',
+        password='testpass123'
+    )
+    qa_user = User.objects.create_user(
+        username='testqa',
+        email='qa@test.com',
+        password='testpass123'
+    )
+    pm_user = User.objects.create_user(
+        username='testpm',
+        email='pm@test.com',
+        password='testpass123'
+    )
+    
+    return {
+        'user1': active_user,
+        'user2': inactive_user,
+        'active': active_user,
+        'inactive': inactive_user,
+        'dev': dev_user,
+        'qa': qa_user,
+        'pm': pm_user
+    }
+
+
+@pytest.fixture
+def tags(db):
+    """Create test tags for categorization."""
+    backend_tag = Tag.objects.create(name='backend')
+    frontend_tag = Tag.objects.create(name='frontend')
+    urgent_tag = Tag.objects.create(name='urgent')
+    testing_tag = Tag.objects.create(name='testing')
+    performance_tag = Tag.objects.create(name='performance')
+    security_tag = Tag.objects.create(name='security')
+    ui_tag = Tag.objects.create(name='ui')
+    api_tag = Tag.objects.create(name='api')
+    database_tag = Tag.objects.create(name='database')
+    
+    return {
+        'backend': backend_tag,
+        'frontend': frontend_tag,
+        'urgent': urgent_tag,
+        'testing': testing_tag,
+        'performance': performance_tag,
+        'security': security_tag,
+        'ui': ui_tag,
+        'api': api_tag,
+        'database': database_tag
+    }
+
+
+@pytest.fixture
+def authenticated_client(api_client, users):
+    """Provide an authenticated API client using the first user."""
+    api_client.force_authenticate(user=users['user1'])
+    return api_client
+
+
+@pytest.fixture
+def sample_task(db, users):
+    """Create a basic sample task for testing."""
+    return Task.objects.create(
+        title='Sample Task',
+        description='A sample task for testing',
+        status=TaskStatus.TODO,
+        reporter=users['user1']
+    )
+
+
+@pytest.fixture
+def sample_tasks(db, users, tags):
+    """Create a variety of sample tasks for comprehensive testing."""
+    # Basic TODO task
+    todo_task = Task.objects.create(
+        title='TODO Task',
+        description='A task in TODO status',
+        status=TaskStatus.TODO,
+        reporter=users['user1']
+    )
+    todo_task.tags.add(tags['frontend'])
+    
+    # In Progress task with estimate and assignee
+    in_progress_task = Task.objects.create(
+        title='In Progress Task',
+        description='A task currently being worked on',
+        status=TaskStatus.IN_PROGRESS,
+        estimate=5,
+        assignee=users['dev'],
+        reporter=users['pm']
+    )
+    in_progress_task.tags.add(tags['backend'], tags['urgent'])
+    
+    # Blocked task
+    blocked_task = Task.objects.create(
+        title='Blocked Task',
+        description='A task that is currently blocked',
+        status=TaskStatus.BLOCKED,
+        estimate=8,
+        assignee=users['qa'],
+        reporter=users['pm']
+    )
+    blocked_task.tags.add(tags['testing'])
+    
+    # Completed task
+    done_task = Task.objects.create(
+        title='Completed Task',
+        description='A task that has been completed',
+        status=TaskStatus.DONE,
+        estimate=3,
+        assignee=users['dev'],
+        reporter=users['user1']
+    )
+    done_task.tags.add(tags['api'], tags['backend'])
+    
+    return {
+        'todo': todo_task,
+        'in_progress': in_progress_task,
+        'blocked': blocked_task,
+        'done': done_task
+    }
+
+
+@pytest.fixture
+def performance_test_data(db, users, tags):
+    """Create test data for performance testing."""
+    tasks = []
+    
+    # Create 100 tasks for performance testing
+    for i in range(100):
+        task = Task.objects.create(
+            title=f'Performance Test Task {i}',
+            description=f'Task {i} for performance testing',
+            status=TaskStatus.TODO if i % 4 == 0 else TaskStatus.IN_PROGRESS if i % 4 == 1 else TaskStatus.BLOCKED if i % 4 == 2 else TaskStatus.DONE,
+            estimate=i % 10 + 1 if i % 4 == 3 else None,  # Only DONE tasks have estimates
+            assignee=users['dev'] if i % 3 == 0 else users['qa'] if i % 3 == 1 else None,
+            reporter=users['pm']
+        )
+        
+        # Add tags to some tasks
+        if i % 5 == 0:
+            task.tags.add(tags['backend'])
+        elif i % 5 == 1:
+            task.tags.add(tags['frontend'])
+        elif i % 5 == 2:
+            task.tags.add(tags['testing'])
+        
+        tasks.append(task)
+    
+    return tasks
+
+
+@pytest.fixture
+def similarity_test_tasks(db, users, tags):
+    """Create tasks for similarity algorithm testing."""
+    # Base task to find similarities for
+    base_task = Task.objects.create(
+        title='Find similar tasks for this one',
+        description='This is the base task for similarity testing',
+        status=TaskStatus.TODO,
+        assignee=users['dev'],
+        reporter=users['pm']
+    )
+    base_task.tags.add(tags['backend'])
+    
+    # Similar task - same assignee
+    similar_assignee = Task.objects.create(
+        title='Different title but same assignee',
+        description='Different description',
+        status=TaskStatus.DONE,
+        estimate=5,
+        assignee=users['dev'],
+        reporter=users['pm']
+    )
+    
+    # Similar task - overlapping tags
+    similar_tags = Task.objects.create(
+        title='Task with similar tags',
+        description='This task has overlapping tags',
+        status=TaskStatus.DONE,
+        estimate=3,
+        assignee=users['qa'],
+        reporter=users['pm']
+    )
+    similar_tags.tags.add(tags['backend'], tags['api'])
+    
+    # Similar task - title match
+    similar_title = Task.objects.create(
+        title='Find similar implementation',
+        description='Different description but similar title',
+        status=TaskStatus.DONE,
+        estimate=2,
+        assignee=users['qa'],
+        reporter=users['pm']
+    )
+    
+    # Similar task - description match
+    similar_description = Task.objects.create(
+        title='Completely different title',
+        description='This is the base description for testing',
+        status=TaskStatus.DONE,
+        estimate=4,
+        assignee=users['qa'],
+        reporter=users['pm']
+    )
+    
+    # Dissimilar task
+    dissimilar = Task.objects.create(
+        title='Unrelated task',
+        description='No similarity whatsoever',
+        status=TaskStatus.DONE,
+        estimate=7,
+        assignee=users['user1'],
+        reporter=users['user1']
+    )
+    dissimilar.tags.add(tags['performance'])
+    
+    return {
+        'base': base_task,
+        'similar_assignee': similar_assignee,
+        'similar_tags': similar_tags,
+        'similar_title': similar_title,
+        'similar_description': similar_description,
+        'dissimilar': dissimilar
+    }

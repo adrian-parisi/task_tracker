@@ -5,7 +5,9 @@ Provides deterministic mocked AI responses for Smart Summary, Smart Estimate, an
 import logging
 import time
 from typing import Dict, Any
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from tasks.models import Task, ActivityType
 
 

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from django_filters.rest_framework import DjangoFilterBackend
-from django.contrib.auth.models import User
+from accounts.models import CustomUser
 from .models import Task, Tag
 from .serializers import TaskSerializer, TaskListSerializer, TagSerializer
 

@@ -2,7 +2,9 @@
 Type aliases and typing utilities for the task management system.
 """
 from typing import Any, Dict, List, Union
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.db.models import QuerySet
 from .models import Task, Tag, TaskActivity
 
