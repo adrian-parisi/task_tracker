@@ -7,7 +7,8 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from ..services.factory import get_ai_service
-from ..utils import validate_and_get_task
+from django.shortcuts import get_object_or_404
+from tasks.models import Task
 from ..serializers import SmartEstimateResponseSerializer
 
 logger = logging.getLogger(__name__)
@@ -57,8 +58,8 @@ def smart_estimate_view(request: Request, task_id: str) -> Response:
         - similar_task_ids: List of similar task IDs used
         - rationale: Human-readable explanation
     """
-    # Validate task_id format and get task
-    task = validate_and_get_task(task_id)
+    # Get task or raise 404
+    task = get_object_or_404(Task, id=task_id)
     
     # Get AI service and generate estimate
     ai_service = get_ai_service()

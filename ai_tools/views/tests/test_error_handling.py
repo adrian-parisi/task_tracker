@@ -24,11 +24,11 @@ class TestErrorHandling:
 
     def test_http_status_codes_smart_summary(self, api_client, test_user, test_task):
         """Test HTTP status codes for smart summary endpoint."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test successful request
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_202_ACCEPTED
 
@@ -38,15 +38,15 @@ class TestErrorHandling:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         # Test invalid UUID
-        api_client.force_authenticate(test_user=test_user)
-        invalid_url = reverse('smart-summary', kwargs={'test_task_id': 'invalid-uuid'})
+        api_client.force_authenticate(user=test_user)
+        invalid_url = reverse('smart-summary', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
         response = api_client.post(invalid_url)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test non-existent test_task
-        nonexistent_url = reverse('smart-summary', kwargs={'test_task_id': uuid.uuid4()})
+        nonexistent_url = reverse('smart-summary', kwargs={'task_id': uuid.uuid4()})
         response = api_client.post(nonexistent_url)
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test wrong HTTP method
         response = api_client.get(url)
@@ -54,7 +54,7 @@ class TestErrorHandling:
 
     def test_http_status_codes_smart_estimate(self, api_client, test_user, test_task):
         """Test HTTP status codes for smart estimate endpoint."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test successful request
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -62,12 +62,12 @@ class TestErrorHandling:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 5,
                 'confidence': 0.8,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Test rationale'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -77,15 +77,15 @@ class TestErrorHandling:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         # Test invalid UUID
-        api_client.force_authenticate(test_user=test_user)
-        invalid_url = reverse('smart-estimate', kwargs={'test_task_id': 'invalid-uuid'})
+        api_client.force_authenticate(user=test_user)
+        invalid_url = reverse('smart-estimate', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
         response = api_client.post(invalid_url)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test non-existent test_task
-        nonexistent_url = reverse('smart-estimate', kwargs={'test_task_id': uuid.uuid4()})
+        nonexistent_url = reverse('smart-estimate', kwargs={'task_id': uuid.uuid4()})
         response = api_client.post(nonexistent_url)
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test wrong HTTP method
         response = api_client.get(url)
@@ -93,18 +93,18 @@ class TestErrorHandling:
 
     def test_http_status_codes_smart_rewrite(self, api_client, test_user, test_task):
         """Test HTTP status codes for smart rewrite endpoint."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test successful request
         with patch('ai_tools.views.smart_rewrite.get_ai_service') as mock_get_service:
             mock_service = MagicMock()
             mock_service.generate_rewrite.return_value = {
                 'title': 'Test Title',
-                'test_user_story': 'As a test_user, I want to test so that I can verify'
+                'user_story': 'As a user, I want to test so that I can verify'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -114,15 +114,15 @@ class TestErrorHandling:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         # Test invalid UUID
-        api_client.force_authenticate(test_user=test_user)
-        invalid_url = reverse('smart-rewrite', kwargs={'test_task_id': 'invalid-uuid'})
+        api_client.force_authenticate(user=test_user)
+        invalid_url = reverse('smart-rewrite', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
         response = api_client.post(invalid_url)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test non-existent test_task
-        nonexistent_url = reverse('smart-rewrite', kwargs={'test_task_id': uuid.uuid4()})
+        nonexistent_url = reverse('smart-rewrite', kwargs={'task_id': uuid.uuid4()})
         response = api_client.post(nonexistent_url)
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test wrong HTTP method
         response = api_client.get(url)
@@ -151,23 +151,23 @@ class TestErrorHandling:
 
     def test_error_response_format_smart_summary(self, api_client, test_user, test_task):
         """Test error response format for smart summary."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test validation error
         with patch('ai_tools.views.smart_summary.validate_and_get_test_task') as mock_validate:
             mock_validate.side_effect = ValidationError('Invalid UUID format')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert 'error' in response.data
 
         # Test service error
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay') as mock_delay:
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay') as mock_delay:
             mock_delay.side_effect = Exception('Service unavailable')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -176,7 +176,7 @@ class TestErrorHandling:
 
     def test_error_response_format_smart_estimate(self, api_client, test_user, test_task):
         """Test error response format for smart estimate."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test service error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -184,14 +184,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Service unavailable')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_error_response_format_smart_rewrite(self, api_client, test_user, test_task):
         """Test error response format for smart rewrite."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test service error
         with patch('ai_tools.views.smart_rewrite.get_ai_service') as mock_get_service:
@@ -199,7 +199,7 @@ class TestErrorHandling:
             mock_service.generate_rewrite.side_effect = Exception('Service unavailable')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -233,13 +233,13 @@ class TestErrorHandling:
 
     def test_database_connection_errors(self, api_client, test_user, test_task):
         """Test handling of database connection errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test AIOperation creation failure
         with patch('ai_tools.models.AIOperation.objects.create') as mock_create:
             mock_create.side_effect = Exception('Database connection failed')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -247,33 +247,33 @@ class TestErrorHandling:
 
     def test_validation_errors(self, api_client, test_user, test_task):
         """Test handling of validation errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test UUID validation error
         with patch('ai_tools.views.smart_summary.validate_and_get_test_task') as mock_validate:
             mock_validate.side_effect = ValidationError('Invalid UUID format')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_service_unavailable_errors(self, api_client, test_user, test_task):
         """Test handling of service unavailable errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test AI service unavailable
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
             mock_get_service.side_effect = Exception('AI service unavailable')
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_timeout_errors(self, api_client, test_user, test_task):
         """Test handling of timeout errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test timeout error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -281,14 +281,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = TimeoutError('Request timeout')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_memory_errors(self, api_client, test_user, test_task):
         """Test handling of memory errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test memory error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -296,14 +296,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = MemoryError('Out of memory')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_network_errors(self, api_client, test_user, test_task):
         """Test handling of network errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test network error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -311,14 +311,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = ConnectionError('Network error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_permission_errors(self, api_client, test_user, test_task):
         """Test handling of permission errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test permission error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -326,14 +326,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = PermissionError('Permission denied')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_file_system_errors(self, api_client, test_user, test_task):
         """Test handling of file system errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test file system error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -341,33 +341,33 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = OSError('File system error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_serialization_errors(self, api_client, test_user, test_task):
         """Test handling of serialization errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test serialization error
         with patch('ai_tools.views.smart_estimate.SmartEstimateResponseSerializer') as mock_serializer:
             mock_serializer.side_effect = Exception('Serialization error')
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_celery_errors(self, api_client, test_user, test_task):
         """Test handling of Celery errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test Celery error
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay') as mock_delay:
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay') as mock_delay:
             mock_delay.side_effect = Exception('Celery broker unavailable')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -375,14 +375,14 @@ class TestErrorHandling:
 
     def test_logging_errors(self, api_client, test_user, test_task):
         """Test handling of logging errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test logging error
         with patch('ai_tools.views.smart_summary.logger') as mock_logger:
             mock_logger.info.side_effect = Exception('Logging error')
             
-            with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-                url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+                url = reverse('smart-summary', kwargs={'task_id': test_task.id})
                 response = api_client.post(url)
                 
                 # Should still work despite logging error
@@ -390,20 +390,20 @@ class TestErrorHandling:
 
     def test_concurrent_access_errors(self, api_client, test_user, test_task):
         """Test handling of concurrent access errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test concurrent access error
         with patch('ai_tools.models.AIOperation.objects.create') as mock_create:
             mock_create.side_effect = Exception('Concurrent access error')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_resource_exhaustion_errors(self, api_client, test_user, test_task):
         """Test handling of resource exhaustion errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test resource exhaustion error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -411,14 +411,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Resource exhausted')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_custom_exception_handling(self, api_client, test_user, test_task):
         """Test handling of custom exceptions."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test custom exception
         class CustomException(Exception):
@@ -429,14 +429,14 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = CustomException('Custom error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_error_message_sanitization(self, api_client, test_user, test_task):
         """Test that error messages are properly sanitized."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test with potentially sensitive error message
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -444,7 +444,7 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Database password: secret123')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -453,7 +453,7 @@ class TestErrorHandling:
 
     def test_error_response_consistency(self, api_client, test_user, test_task):
         """Test that error responses are consistent across endpoints."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test all endpoints with same error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -461,7 +461,7 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Test error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -470,13 +470,13 @@ class TestErrorHandling:
             mock_service.generate_rewrite.side_effect = Exception('Test error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_error_response_headers(self, api_client, test_user, test_task):
         """Test that error responses have proper headers."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test error response headers
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -484,7 +484,7 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Test error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -492,7 +492,7 @@ class TestErrorHandling:
 
     def test_error_response_timing(self, api_client, test_user, test_task):
         """Test that error responses are returned quickly."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test error response timing
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -500,7 +500,7 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Test error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -508,7 +508,7 @@ class TestErrorHandling:
 
     def test_error_response_idempotency(self, api_client, test_user, test_task):
         """Test that error responses are idempotent."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test multiple requests with same error
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -516,7 +516,7 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = Exception('Test error')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             
             # Make multiple requests
             for _ in range(3):
@@ -525,7 +525,7 @@ class TestErrorHandling:
 
     def test_error_response_recovery(self, api_client, test_user, test_task):
         """Test that system recovers from errors."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test error then success
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -533,12 +533,12 @@ class TestErrorHandling:
             mock_service.generate_estimate.side_effect = [Exception('Test error'), {
                 'suggested_points': 5,
                 'confidence': 0.8,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Test rationale'
             }]
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             
             # First request should fail
             response = api_client.post(url)

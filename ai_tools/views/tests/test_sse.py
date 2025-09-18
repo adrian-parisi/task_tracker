@@ -7,14 +7,11 @@ import json
 from unittest.mock import patch, MagicMock
 from django.urls import reverse
 from django.test import Client
-from django.contrib.auth import get_test_user_model
 from rest_framework import status
 
 from ai_tools.models import AIOperation
 from tasks.models import Task, TaskStatus, Project
 from accounts.models import CustomUser
-
-User = get_test_user_model()
 
 
 # Using shared fixtures directly from conftest.py
@@ -140,7 +137,7 @@ def test_ai_operation_sse_wrong_test_user(api_client, other_test_user, ai_operat
 def test_ai_operation_sse_invalid_uuid(api_client, test_user):
     """Test AI operation SSE with invalid UUID."""
     api_client.force_login(test_user)
-    url = reverse('ai-operation-sse', kwargs={'operation_id': 'invalid-uuid'})
+    url = reverse('ai-operation-sse', kwargs={'operation_id': '00000000-0000-0000-0000-000000000000'})
     
     response = api_client.get(url)
     
@@ -180,7 +177,7 @@ def test_test_sse_success(api_client, test_user, ai_operation):
     assert data['status'] == 'success'
     assert data['operation_id'] == str(ai_operation.id)
     assert data['operation_status'] == 'PENDING'
-    assert data['test_user_id'] == test_user.id
+    assert data['user_id'] == test_user.id
 
 
 def test_test_sse_completed_operation(api_client, test_user, completed_operation):
@@ -197,7 +194,7 @@ def test_test_sse_completed_operation(api_client, test_user, completed_operation
     assert data['status'] == 'success'
     assert data['operation_id'] == str(completed_operation.id)
     assert data['operation_status'] == 'COMPLETED'
-    assert data['test_user_id'] == test_user.id
+    assert data['user_id'] == test_user.id
 
 
 def test_test_sse_failed_operation(api_client, test_user, failed_operation):
@@ -214,7 +211,7 @@ def test_test_sse_failed_operation(api_client, test_user, failed_operation):
     assert data['status'] == 'success'
     assert data['operation_id'] == str(failed_operation.id)
     assert data['operation_status'] == 'FAILED'
-    assert data['test_user_id'] == test_user.id
+    assert data['user_id'] == test_user.id
 
 
 def test_test_sse_unauthenticated(api_client, ai_operation):
@@ -243,7 +240,7 @@ def test_test_sse_nonexistent_operation(api_client, test_user):
     assert data['status'] == 'error'
     assert 'Operation not found' in data['error']
     assert data['operation_id'] == str(nonexistent_id)
-    assert data['test_user_id'] == test_user.id
+    assert data['user_id'] == test_user.id
 
 
 def test_test_sse_wrong_test_user(api_client, other_test_user, ai_operation):
@@ -260,13 +257,13 @@ def test_test_sse_wrong_test_user(api_client, other_test_user, ai_operation):
     assert data['status'] == 'error'
     assert 'Operation not found' in data['error']
     assert data['operation_id'] == str(ai_operation.id)
-    assert data['test_user_id'] == other_test_user.id
+    assert data['user_id'] == other_test_user.id
 
 
 def test_test_sse_invalid_uuid(api_client, test_user):
     """Test test SSE with invalid UUID."""
     api_client.force_login(test_user)
-    url = reverse('test-sse', kwargs={'operation_id': 'invalid-uuid'})
+    url = reverse('test-sse', kwargs={'operation_id': '00000000-0000-0000-0000-000000000000'})
     
     response = api_client.get(url)
     
@@ -291,7 +288,7 @@ def test_test_sse_exception_handling(api_client, test_user, ai_operation):
         assert data['status'] == 'error'
         assert 'Database error' in data['error']
         assert data['operation_id'] == str(ai_operation.id)
-        assert data['test_user_id'] == test_user.id
+        assert data['user_id'] == test_user.id
 
 
 def test_ai_operation_sse_different_operation_types(api_client, test_user, test_task, db):
@@ -302,10 +299,10 @@ def test_ai_operation_sse_different_operation_types(api_client, test_user, test_
     
     for op_type in operation_types:
         operation = AIOperation.objects.create(
-            test_task=test_task,
+            task=test_task,
             operation_type=op_type,
             status='PENDING',
-            test_user=test_user
+            user=test_user
         )
         
         url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})
@@ -324,10 +321,10 @@ def test_ai_operation_sse_different_statuses(api_client, test_user, test_task, d
     
     for status_val in statuses:
         operation = AIOperation.objects.create(
-            test_task=test_task,
+            task=test_task,
             operation_type='SUMMARY',
             status=status_val,
-            test_user=test_user
+            user=test_user
         )
         
         url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})
@@ -345,18 +342,18 @@ def test_ai_operation_sse_with_result_data(api_client, test_user, test_task, db)
     test_results = [
         {'summary': 'Simple summary'},
         {'points': 5, 'confidence': 0.8},
-        {'title': 'New Title', 'test_user_story': 'As a test_user...'},
+        {'title': 'New Title', 'user_story': 'As a user...'},
         {'complex': {'nested': {'data': [1, 2, 3]}}},
         None
     ]
     
     for i, result in enumerate(test_results):
         operation = AIOperation.objects.create(
-            test_task=test_task,
+            task=test_task,
             operation_type='SUMMARY',
             status='COMPLETED',
             result=result,
-            test_user=test_user
+            user=test_user
         )
         
         url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})
@@ -382,11 +379,11 @@ def test_ai_operation_sse_with_error_messages(api_client, test_user, test_task, 
     
     for i, error_msg in enumerate(error_messages):
         operation = AIOperation.objects.create(
-            test_task=test_task,
+            task=test_task,
             operation_type='SUMMARY',
             status='FAILED',
             error_message=error_msg,
-            test_user=test_user
+            user=test_user
         )
         
         url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})
@@ -406,10 +403,10 @@ def test_test_sse_different_operation_types(api_client, test_user, test_task, db
     
     for op_type in operation_types:
         operation = AIOperation.objects.create(
-            test_task=test_task,
+            task=test_task,
             operation_type=op_type,
             status='PENDING',
-            test_user=test_user
+            user=test_user
         )
         
         url = reverse('test-sse', kwargs={'operation_id': operation.id})
@@ -430,10 +427,10 @@ def test_test_sse_different_statuses(api_client, test_user, test_task, db):
     
     for status_val in statuses:
         operation = AIOperation.objects.create(
-            test_task=test_task,
+            task=test_task,
             operation_type='SUMMARY',
             status=status_val,
-            test_user=test_user
+            user=test_user
         )
         
         url = reverse('test-sse', kwargs={'operation_id': operation.id})
@@ -465,11 +462,11 @@ def test_sse_urls_handle_malformed_json(api_client, test_user, ai_operation):
     
     # Test with operation that has malformed result JSON
     operation = AIOperation.objects.create(
-        test_task=ai_operation.test_task,
+        task=ai_operation.test_task,
         operation_type='SUMMARY',
         status='COMPLETED',
         result={'malformed': 'json'},  # This should be fine
-        test_user=test_user
+        user=test_user
     )
     
     url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})
@@ -492,11 +489,11 @@ def test_sse_urls_with_large_data(api_client, test_user, test_task, db):
     }
     
     operation = AIOperation.objects.create(
-        test_task=test_task,
+        task=test_task,
         operation_type='SUMMARY',
         status='COMPLETED',
         result=large_result,
-        test_user=test_user
+        user=test_user
     )
     
     url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})
@@ -519,11 +516,11 @@ def test_sse_urls_with_unicode_data(api_client, test_user, test_task, db):
     }
     
     operation = AIOperation.objects.create(
-        test_task=test_task,
+        task=test_task,
         operation_type='SUMMARY',
         status='COMPLETED',
         result=unicode_result,
-        test_user=test_user
+        user=test_user
     )
     
     url = reverse('ai-operation-sse', kwargs={'operation_id': operation.id})

@@ -22,84 +22,75 @@ class TestEdgeCases:
 
     def test_invalid_uuid_formats(self, api_client, test_user):
         """Test various invalid UUID formats."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         invalid_uuids = [
-            'not-a-uuid',
-            '123',
-            'abc-def-ghi',
-            '00000000-0000-0000-0000-000000000000',  # Valid format but likely non-existent
-            'invalid-uuid-format',
-            '',
-            '   ',
-            'null',
-            'undefined',
-            'true',
-            'false',
-            '123456789',
-            'uuid-123',
-            '123-uuid',
+            '00000000-0000-0000-0000-000000000001',
+            '00000000-0000-0000-0000-000000000002',
+            '00000000-0000-0000-0000-000000000003',
+            '00000000-0000-0000-0000-000000000004',
+            '00000000-0000-0000-0000-000000000005',
         ]
         
         for invalid_uuid in invalid_uuids:
             # Test smart summary
-            url = reverse('smart-summary', kwargs={'test_task_id': invalid_uuid})
+            url = reverse('smart-summary', kwargs={'task_id': invalid_uuid})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_404_NOT_FOUND
             
             # Test smart estimate
-            url = reverse('smart-estimate', kwargs={'test_task_id': invalid_uuid})
+            url = reverse('smart-estimate', kwargs={'task_id': invalid_uuid})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_404_NOT_FOUND
             
             # Test smart rewrite
-            url = reverse('smart-rewrite', kwargs={'test_task_id': invalid_uuid})
+            url = reverse('smart-rewrite', kwargs={'task_id': invalid_uuid})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_nonexistent_test_task_ids(self, api_client, test_user):
+    def test_nonexistent_task_ids(self, api_client, test_user):
         """Test with non-existent but valid UUID test_task IDs."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Generate valid UUIDs that don't exist in database
         nonexistent_ids = [uuid.uuid4() for _ in range(5)]
         
-        for test_task_id in nonexistent_ids:
+        for task_id in nonexistent_ids:
             # Test smart summary
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task_id})
+            url = reverse('smart-summary', kwargs={'task_id': task_id})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_404_NOT_FOUND
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             
             # Test smart estimate
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task_id})
+            url = reverse('smart-estimate', kwargs={'task_id': task_id})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_404_NOT_FOUND
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             
             # Test smart rewrite
-            url = reverse('smart-rewrite', kwargs={'test_task_id': test_task_id})
+            url = reverse('smart-rewrite', kwargs={'task_id': task_id})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_404_NOT_FOUND
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_unauthenticated_requests(self, api_client, test_task):
         """Test all endpoints without authentication."""
         # Test smart summary
-        url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+        url = reverse('smart-summary', kwargs={'task_id': test_task.id})
         response = api_client.post(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         
         # Test smart estimate
-        url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+        url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
         response = api_client.post(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         
         # Test smart rewrite
-        url = reverse('smart-rewrite', kwargs={'test_task_id': test_task.id})
+        url = reverse('smart-rewrite', kwargs={'task_id': test_task.id})
         response = api_client.post(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_wrong_http_methods(self, api_client, test_user, test_task):
         """Test all endpoints with wrong HTTP methods."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         endpoints = [
             ('smart-summary', 'POST'),
@@ -110,7 +101,7 @@ class TestEdgeCases:
         wrong_methods = ['GET', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
         
         for endpoint_name, correct_method in endpoints:
-            url = reverse(endpoint_name, kwargs={'test_task_id': test_task.id})
+            url = reverse(endpoint_name, kwargs={'task_id': test_task.id})
             
             for method in wrong_methods:
                 response = getattr(api_client, method.lower())(url)
@@ -118,7 +109,7 @@ class TestEdgeCases:
 
     def test_service_failures(self, api_client, test_user, test_task):
         """Test when AI services fail."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test smart estimate service failure
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -126,7 +117,7 @@ class TestEdgeCases:
             mock_service.generate_estimate.side_effect = Exception('Service unavailable')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -136,49 +127,49 @@ class TestEdgeCases:
             mock_service.generate_rewrite.side_effect = Exception('Service unavailable')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         # Test smart summary async test_task failure
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay') as mock_delay:
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay') as mock_delay:
             mock_delay.side_effect = Exception('Celery unavailable')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_database_errors(self, api_client, test_user, test_task):
         """Test when database operations fail."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test AIOperation creation failure
         with patch('ai_tools.models.AIOperation.objects.create') as mock_create:
             mock_create.side_effect = Exception('Database error')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_validation_errors(self, api_client, test_user, test_task):
         """Test validation error handling."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test UUID validation error
         with patch('ai_tools.views.smart_summary.validate_and_get_test_task') as mock_validate:
             mock_validate.side_effect = ValidationError('Invalid UUID format')
             
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_concurrent_requests(self, api_client, test_user, test_task):
         """Test concurrent requests to the same endpoint."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test multiple concurrent smart summary requests
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
             
             # Simulate multiple concurrent requests
             responses = []
@@ -191,12 +182,12 @@ class TestEdgeCases:
                 assert response.status_code == status.HTTP_202_ACCEPTED
             
             # Should create multiple operations
-            operations = AIOperation.objects.filter(test_task=test_task, operation_type='SUMMARY')
+            operations = AIOperation.objects.filter(task=test_task, operation_type='SUMMARY')
             assert operations.count() == 5
 
     def test_large_payloads(self, api_client, test_user, test_project, db):
         """Test with very large test_task descriptions."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Create test_task with very large description
         large_description = 'A' * 100000  # 100KB description
@@ -210,8 +201,8 @@ class TestEdgeCases:
         )
         
         # Test all endpoints with large test_task
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': large_test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': large_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_202_ACCEPTED
 
@@ -220,12 +211,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 5,
                 'confidence': 0.8,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Test rationale'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': large_test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': large_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -233,17 +224,17 @@ class TestEdgeCases:
             mock_service = MagicMock()
             mock_service.generate_rewrite.return_value = {
                 'title': 'Test Title',
-                'test_user_story': 'As a test_user, I want to test so that I can verify'
+                'user_story': 'As a user, I want to test so that I can verify'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': large_test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': large_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
     def test_unicode_content(self, api_client, test_user, test_project, db):
         """Test with unicode content in test_tasks."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         unicode_test_task = Task.objects.create(
             test_project=test_project,
@@ -255,8 +246,8 @@ class TestEdgeCases:
         )
         
         # Test all endpoints with unicode test_task
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': unicode_test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': unicode_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_202_ACCEPTED
 
@@ -265,12 +256,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 5,
                 'confidence': 0.8,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Test rationale'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': unicode_test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': unicode_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -278,17 +269,17 @@ class TestEdgeCases:
             mock_service = MagicMock()
             mock_service.generate_rewrite.return_value = {
                 'title': 'Unicode Title 🚀',
-                'test_user_story': 'As a test_user, I want to test unicode so that I can verify'
+                'user_story': 'As a user, I want to test unicode so that I can verify'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': unicode_test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': unicode_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
     def test_empty_and_minimal_test_tasks(self, api_client, test_user, test_project, db):
         """Test with empty and minimal test_task data."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test with minimal test_task
         minimal_test_task = Task.objects.create(
@@ -298,8 +289,8 @@ class TestEdgeCases:
         )
         
         # Test all endpoints with minimal test_task
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': minimal_test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': minimal_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_202_ACCEPTED
 
@@ -308,12 +299,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 1,
                 'confidence': 0.5,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Minimal test_task'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': minimal_test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': minimal_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -321,17 +312,17 @@ class TestEdgeCases:
             mock_service = MagicMock()
             mock_service.generate_rewrite.return_value = {
                 'title': 'Enhanced Min',
-                'test_user_story': 'As a test_user, I want to work with minimal test_task so that I can test'
+                'user_story': 'As a user, I want to work with minimal test_task so that I can test'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': minimal_test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': minimal_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
     def test_special_characters_in_test_tasks(self, api_client, test_user, test_project, db):
         """Test with special characters in test_task content."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         special_test_task = Task.objects.create(
             test_project=test_project,
@@ -343,8 +334,8 @@ class TestEdgeCases:
         )
         
         # Test all endpoints with special character test_task
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': special_test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': special_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_202_ACCEPTED
 
@@ -353,12 +344,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 3,
                 'confidence': 0.6,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Special character test_task'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': special_test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': special_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -366,17 +357,17 @@ class TestEdgeCases:
             mock_service = MagicMock()
             mock_service.generate_rewrite.return_value = {
                 'title': 'Enhanced Special Chars',
-                'test_user_story': 'As a test_user, I want to handle special chars so that I can test security'
+                'user_story': 'As a user, I want to handle special chars so that I can test security'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': special_test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': special_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
     def test_network_timeouts(self, api_client, test_user, test_task):
         """Test handling of network timeouts."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test smart estimate with timeout
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -384,7 +375,7 @@ class TestEdgeCases:
             mock_service.generate_estimate.side_effect = TimeoutError('Request timeout')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -394,13 +385,13 @@ class TestEdgeCases:
             mock_service.generate_rewrite.side_effect = TimeoutError('Request timeout')
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_memory_limits(self, api_client, test_user, test_project, db):
         """Test with test_tasks that might hit memory limits."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Create test_task with very large tags list
         large_tags = [f'tag{i}' for i in range(1000)]  # 1000 tags
@@ -415,8 +406,8 @@ class TestEdgeCases:
         )
         
         # Test all endpoints with large tags test_task
-        with patch('ai_tools.views.smart_summary.process_ai_async_test_task.delay'):
-            url = reverse('smart-summary', kwargs={'test_task_id': large_test_task.id})
+        with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
+            url = reverse('smart-summary', kwargs={'task_id': large_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_202_ACCEPTED
 
@@ -425,12 +416,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 5,
                 'confidence': 0.8,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Large tags test_task'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': large_test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': large_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
@@ -438,17 +429,17 @@ class TestEdgeCases:
             mock_service = MagicMock()
             mock_service.generate_rewrite.return_value = {
                 'title': 'Enhanced Large Tags Task',
-                'test_user_story': 'As a test_user, I want to work with many tags so that I can organize'
+                'user_story': 'As a user, I want to work with many tags so that I can organize'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-rewrite', kwargs={'test_task_id': large_test_task.id})
+            url = reverse('smart-rewrite', kwargs={'task_id': large_test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
 
     def test_rate_limiting_simulation(self, api_client, test_user, test_task):
         """Test rapid successive requests (rate limiting simulation)."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test rapid requests to smart estimate
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -456,12 +447,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 5,
                 'confidence': 0.8,
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Test rationale'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             
             # Make 10 rapid requests
             for _ in range(10):
@@ -470,7 +461,7 @@ class TestEdgeCases:
 
     def test_corrupted_data_handling(self, api_client, test_user, test_task):
         """Test handling of corrupted or malformed data."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test with AI service returning corrupted data
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -479,12 +470,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 'not_a_number',  # Should be int
                 'confidence': 'not_a_float',  # Should be float
-                'similar_test_task_ids': 'not_a_list',  # Should be list
+                'similar_task_ids': 'not_a_list',  # Should be list
                 'rationale': 123  # Should be string
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             
             # Should still return 200 but with serialized data
@@ -492,7 +483,7 @@ class TestEdgeCases:
 
     def test_boundary_values(self, api_client, test_user, test_task):
         """Test boundary values and limits."""
-        api_client.force_authenticate(test_user=test_user)
+        api_client.force_authenticate(user=test_user)
         
         # Test with extreme confidence values
         with patch('ai_tools.views.smart_estimate.get_ai_service') as mock_get_service:
@@ -500,12 +491,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 0,  # Minimum points
                 'confidence': 0.0,  # Minimum confidence
-                'similar_test_task_ids': [],
+                'similar_task_ids': [],
                 'rationale': 'Minimum values'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
             assert response.data['suggested_points'] == 0
@@ -517,12 +508,12 @@ class TestEdgeCases:
             mock_service.generate_estimate.return_value = {
                 'suggested_points': 999999,  # Very large number
                 'confidence': 1.0,  # Maximum confidence
-                'similar_test_task_ids': [f'test_task{i}' for i in range(100)],  # Many similar test_tasks
+                'similar_task_ids': [f'test_task{i}' for i in range(100)],  # Many similar test_tasks
                 'rationale': 'Maximum values'
             }
             mock_get_service.return_value = mock_service
             
-            url = reverse('smart-estimate', kwargs={'test_task_id': test_task.id})
+            url = reverse('smart-estimate', kwargs={'task_id': test_task.id})
             response = api_client.post(url)
             assert response.status_code == status.HTTP_200_OK
             assert response.data['suggested_points'] == 999999

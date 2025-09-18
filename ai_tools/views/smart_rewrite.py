@@ -7,7 +7,8 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from ..services.factory import get_ai_service
-from ..utils import validate_and_get_task
+from django.shortcuts import get_object_or_404
+from tasks.models import Task
 from ..serializers import SmartRewriteResponseSerializer, ErrorResponseSerializer
 
 logger = logging.getLogger(__name__)
@@ -59,22 +60,16 @@ def smart_rewrite_view(request: Request, task_id: str) -> Response:
         - title: Enhanced task title
         - user_story: Complete user story with acceptance criteria
     """
-    try:
-        # Validate task_id format and get task
-        task = validate_and_get_task(task_id)
-        
-        # Get AI service and generate rewrite
-        ai_service = get_ai_service()
-        rewrite_result = ai_service.generate_rewrite(task)
-        
-        # Log the AI tool invocation
-        logger.info(f"Smart rewrite completed for Task {task.id} by user {request.user.id}")
-        
-        # Serialize and return response
-        serializer = SmartRewriteResponseSerializer(rewrite_result)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        logger.error(f"Error in smart rewrite for task {task_id}: {str(e)}")
-        error_serializer = ErrorResponseSerializer({'error': 'Unable to generate rewrite at this time.'})
-        return Response(error_serializer.data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # Get task or raise 404
+    task = get_object_or_404(Task, id=task_id)
+    
+    # Get AI service and generate rewrite
+    ai_service = get_ai_service()
+    rewrite_result = ai_service.generate_rewrite(task)
+    
+    # Log the AI tool invocation
+    logger.info(f"Smart rewrite completed for Task {task.id} by user {request.user.id}")
+    
+    # Serialize and return response
+    serializer = SmartRewriteResponseSerializer(rewrite_result)
+    return Response(serializer.data, status=status.HTTP_200_OK)

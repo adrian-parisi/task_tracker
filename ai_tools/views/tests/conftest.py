@@ -65,7 +65,7 @@ def inactive_user(db):
 def test_project(db, test_user):
     """Create a test project."""
     return Project.objects.create(
-        code='TEST',
+        code='TST',
         name='Test Project',
         description='Test project for AI tools',
         owner=test_user
@@ -76,7 +76,7 @@ def test_project(db, test_user):
 def other_project(db, other_user):
     """Create a project owned by another user."""
     return Project.objects.create(
-        code='OTHER',
+        code='OTH',
         name='Other Project',
         description='Project owned by other user',
         owner=other_user

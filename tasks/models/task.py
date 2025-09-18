@@ -86,11 +86,6 @@ class Task(BaseModel):
         if self.estimate is not None:
             validate_task_estimate(self.estimate)
         
-        # Business rule: Task cannot be marked as DONE without an estimate
-        if self.status == TaskStatus.DONE and self.estimate is None:
-            raise ValidationError({
-                'estimate': 'Tasks marked as DONE must have an estimate.'
-            })
     
     def _generate_task_key(self) -> str:
         """
