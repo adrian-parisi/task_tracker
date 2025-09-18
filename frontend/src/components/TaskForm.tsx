@@ -16,7 +16,7 @@ import {
     Paper
 } from '@mui/material';
 import { Psychology } from '@mui/icons-material';
-import { Task, TaskStatus, Tag, SmartEstimateResponse, User } from '../types/task';
+import { Task, TaskStatus, SmartEstimateResponse, User } from '../types/task';
 import { TaskService } from '../services/taskService';
 import UserAutocomplete from './UserAutocomplete';
 
@@ -34,7 +34,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
         estimate: '',
         assignee: null as User | null,
         reporter: null as User | null,
-        tags: [] as Tag[]
+        tags: [] as string[]
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>('');
@@ -80,13 +80,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
                 // Send user IDs for assignee and reporter (backend expects primary keys)
                 assignee: formData.assignee?.id || null,
                 reporter: formData.reporter?.id || null,
-                tags: formData.tags.map(tag => tag.id)
+                tags: formData.tags
             };
 
             let savedTask: Task;
             if (task) {
+                // For updates, don't include project field
                 savedTask = await TaskService.updateTask(task.id, taskData);
             } else {
+                // For new tasks, include the project field
+                taskData.project = "c34a8e03-7f0e-47f7-9cf6-428c07fb7d1b";
                 savedTask = await TaskService.createTask(taskData);
             }
 
@@ -265,12 +268,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
                         multiple
                         freeSolo
                         options={[]}
-                        value={formData.tags.map(tag => tag.name)}
+                        value={formData.tags}
                         onChange={(_, newValue) => {
-                            const tags = newValue.map((name, index) => ({
-                                id: index,
-                                name: typeof name === 'string' ? name : name
-                            }));
+                            const tags = newValue.map(name => 
+                                typeof name === 'string' ? name : name
+                            );
                             handleInputChange('tags', tags);
                         }}
                         renderTags={(value, getTagProps) =>

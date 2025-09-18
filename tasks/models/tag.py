@@ -1,9 +1,10 @@
 from typing import Any
 from django.db import models
+from common.models import BaseModel
 from .validators import validate_tag_name
 
 
-class Tag(models.Model):
+class Tag(BaseModel):
     name = models.CharField(
         max_length=64, 
         unique=True,

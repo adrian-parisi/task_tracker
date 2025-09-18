@@ -4,6 +4,10 @@
 - Do not use `get_user_model()` - always import and use `CustomUser` directly from `accounts.models`
 - Organize models in `models/` package with one module per model/component
 - No `models.py` file - use `models/` package structure instead
+- Organize views in `views/` package with one module per viewset/component
+- No `views.py` file - use `views/` package structure instead
+- Co-locate serializers with their corresponding views (no separate `serializers.py`)
+- Organize AI tools views by functionality: `smart_estimate.py`, `smart_summary.py`, `smart_rewrite.py`
 - Organize model tests in `models/tests/` directory with one test module per model
 - Use specific test module names: `test_validators.py`, `test_choices.py`, `test_tag.py`, `test_task.py`, `test_activity.py`
 - Use pytest style for all tests: `pytest.raises()`, `assert` statements, `@pytest.fixture`, `@pytest.mark.parametrize`

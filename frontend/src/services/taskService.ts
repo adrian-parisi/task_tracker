@@ -137,7 +137,7 @@ export class TaskService {
 
     static async getSmartRewrite(taskId: string): Promise<SmartRewriteResponse> {
         try {
-            const response = await apiClient.post(`/tasks/${taskId}/smart-rewrite/`);
+            const response = await apiClient.get(`/tasks/${taskId}/smart-rewrite/`);
             return response.data;
         } catch (error: any) {
             const message = error.response?.status === 404 

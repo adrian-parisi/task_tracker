@@ -21,10 +21,7 @@ describe('AI Tools Integration', () => {
         reporter: 2,
         assignee_detail: { id: 1, username: 'developer', first_name: 'Dev', last_name: 'User', display_name: 'Dev User' },
         reporter_detail: { id: 2, username: 'pm', first_name: 'Project', last_name: 'Manager', display_name: 'Project Manager' },
-        tags: [
-            { id: 1, name: 'backend' },
-            { id: 2, name: 'security' }
-        ],
+        tags: ['backend', 'security'],
         created_at: '2023-01-01T00:00:00Z',
         updated_at: '2023-01-02T00:00:00Z'
     };

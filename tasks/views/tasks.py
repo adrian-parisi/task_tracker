@@ -1,50 +1,12 @@
 from typing import Any, Dict
-from rest_framework import serializers
+from rest_framework import viewsets, status, filters, serializers
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.exceptions import ValidationError
+from django_filters.rest_framework import DjangoFilterBackend
 from accounts.models import CustomUser
-from .models import Task, Tag, TaskStatus
-
-
-class TagSerializer(serializers.ModelSerializer):
-    """Serializer for Tag model with case-insensitive validation."""
-    
-    class Meta:
-        model = Tag
-        fields = ['id', 'name']
-        read_only_fields = ['id']
-    
-    def validate_name(self, value: str) -> str:
-        """Validate tag name with case-insensitive uniqueness check."""
-        if not value or not value.strip():
-            raise serializers.ValidationError("Tag name cannot be empty or just whitespace.")
-        
-        # Normalize the name
-        normalized_name = value.strip()
-        
-        # Length validation
-        if len(normalized_name) < 2:
-            raise serializers.ValidationError("Tag name must be at least 2 characters long.")
-        
-        if len(normalized_name) > 64:
-            raise serializers.ValidationError("Tag name cannot exceed 64 characters.")
-        
-        # Character validation
-        allowed_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_')
-        if not all(char in allowed_chars for char in normalized_name):
-            raise serializers.ValidationError(
-                "Tag name can only contain letters, numbers, hyphens, and underscores."
-            )
-        
-        # Check case-insensitive uniqueness (requirement 6.1)
-        existing_tag = Tag.objects.filter(name__iexact=normalized_name)
-        
-        # If updating, exclude current instance
-        if self.instance:
-            existing_tag = existing_tag.exclude(pk=self.instance.pk)
-        
-        if existing_tag.exists():
-            raise serializers.ValidationError("A tag with this name already exists (case-insensitive).")
-        
-        return normalized_name
+from ..models import Task, Project, TaskStatus
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -56,6 +18,15 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
         read_only_fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
+
+
+class ProjectSerializer(serializers.ModelSerializer):
+    """Basic project serializer for task relationships."""
+    
+    class Meta:
+        model = Project
+        fields = ['id', 'code', 'name']
+        read_only_fields = ['id', 'code', 'name']
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -74,11 +45,16 @@ class TaskSerializer(serializers.ModelSerializer):
     )
     
     # Nested serializers for read operations
+    project_detail = ProjectSerializer(source='project', read_only=True)
     assignee_detail = UserSerializer(source='assignee', read_only=True)
     reporter_detail = UserSerializer(source='reporter', read_only=True)
-    tags_detail = TagSerializer(source='tags', many=True, read_only=True)
     
     # Write-only fields for relationships
+    project = serializers.PrimaryKeyRelatedField(
+        queryset=Project.objects.filter(is_active=True),
+        required=True,
+        write_only=True
+    )
     assignee = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(),
         required=False,
@@ -91,11 +67,10 @@ class TaskSerializer(serializers.ModelSerializer):
         allow_null=True,
         write_only=True
     )
-    tags = serializers.PrimaryKeyRelatedField(
-        queryset=Tag.objects.all(),
-        many=True,
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=64),
         required=False,
-        write_only=True
+        help_text="Array of tag names as strings"
     )
     
     # Activity count for UI consumption (requirement 9.4)
@@ -104,12 +79,12 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'id', 'title', 'description', 'status', 'estimate',
+            'id', 'key', 'project', 'project_detail', 'title', 'description', 'status', 'estimate',
             'assignee', 'reporter', 'tags',
-            'assignee_detail', 'reporter_detail', 'tags_detail',
+            'assignee_detail', 'reporter_detail',
             'activity_count', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'key', 'created_at', 'updated_at']
     
     def get_activity_count(self, obj: Task) -> int:
         """Return the count of activities for this task."""
@@ -190,26 +165,31 @@ class TaskSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data: Dict[str, Any]) -> Task:
-        """Create a new task with proper tag handling."""
-        tags_data = validated_data.pop('tags', [])
-        task = Task.objects.create(**validated_data)
-        task.tags.set(tags_data)
-        return task
+        """Create a new task with tags as array field."""
+        # Normalize tag names (trim whitespace and filter empty ones)
+        if 'tags' in validated_data:
+            validated_data['tags'] = [
+                tag.strip() for tag in validated_data['tags'] 
+                if tag and tag.strip()
+            ]
+        
+        # Create the task directly - tags are now just an array field
+        return Task.objects.create(**validated_data)
     
     def update(self, instance: Task, validated_data: Dict[str, Any]) -> Task:
-        """Update task with proper tag handling."""
-        tags_data = validated_data.pop('tags', None)
+        """Update task with tags as array field."""
+        # Normalize tag names if provided
+        if 'tags' in validated_data and validated_data['tags'] is not None:
+            validated_data['tags'] = [
+                tag.strip() for tag in validated_data['tags'] 
+                if tag and tag.strip()
+            ]
         
-        # Update all other fields
+        # Update all fields including tags
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
         instance.save()
-        
-        # Update tags if provided
-        if tags_data is not None:
-            instance.tags.set(tags_data)
-        
         return instance
 
 
@@ -219,7 +199,70 @@ class TaskListSerializer(TaskSerializer):
     class Meta(TaskSerializer.Meta):
         # Exclude activity_count from list view for performance
         fields = [
-            'id', 'title', 'description', 'status', 'estimate',
-            'assignee_detail', 'reporter_detail', 'tags_detail',
+            'id', 'key', 'project_detail', 'title', 'description', 'status', 'estimate',
+            'assignee_detail', 'reporter_detail', 'tags',
             'created_at', 'updated_at'
         ]
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Task CRUD operations with filtering and pagination.
+    
+    Supports filtering by:
+    - status: Filter by task status (TODO, IN_PROGRESS, BLOCKED, DONE)
+    - project: Filter by project ID
+    - assignee: Filter by assignee user ID
+    - tags: Filter by tag IDs (comma-separated)
+    
+    Supports pagination with default 20 items per page, max 100.
+    """
+    
+    queryset = Task.objects.all().select_related('project', 'assignee', 'reporter')
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status', 'project', 'assignee']
+    ordering_fields = ['created_at', 'updated_at', 'title']
+    ordering = ['-updated_at']  # Default ordering
+    
+    def get_serializer_class(self) -> type[TaskSerializer | TaskListSerializer]:
+        """Use optimized serializer for list view."""
+        if self.action == 'list':
+            return TaskListSerializer
+        return TaskSerializer
+    
+    
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create a new task (requirement 4.1)."""
+        # Set reporter to current user if not provided
+        data = request.data.copy()
+        if 'reporter' not in data:
+            data['reporter'] = request.user.id
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        
+        task = serializer.save()
+        
+        # Return full task data with nested relationships
+        response_serializer = TaskSerializer(task)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    
+    def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Update a task (requirement 4.2)."""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        
+        task = serializer.save()
+        
+        # Return full task data with nested relationships
+        response_serializer = TaskSerializer(task)
+        return Response(response_serializer.data)
+    
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Delete a task with hard delete (requirement 4.5)."""
+        instance = self.get_object()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -322,12 +322,12 @@ const TaskList: React.FC = () => {
                                 </Box>
 
                                 {/* Tags */}
-                                {((task.tags_detail || task.tags) && (task.tags_detail || task.tags).length > 0) && (
+                                {task.tags && task.tags.length > 0 && (
                                     <Box display="flex" gap={1} mb={2} flexWrap="wrap">
-                                        {(task.tags_detail || task.tags).map((tag) => (
+                                        {task.tags.map((tag, index) => (
                                             <Chip
-                                                key={tag.id}
-                                                label={tag.name}
+                                                key={index}
+                                                label={tag}
                                                 variant="outlined"
                                                 size="small"
                                                 color="secondary"

@@ -3,11 +3,9 @@ Pytest fixtures for Tasks app tests.
 Provides reusable test data and setup for consistent testing.
 """
 import pytest
-from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-
-User = get_user_model()
-from tasks.models import Task, Tag, TaskStatus
+from accounts.models import CustomUser
+from tasks.models import Task, Tag, Project, TaskStatus
 
 
 @pytest.fixture
@@ -19,29 +17,29 @@ def api_client():
 @pytest.fixture
 def users(db):
     """Create test users for various testing scenarios."""
-    active_user = User.objects.create_user(
+    active_user = CustomUser.objects.create_user(
         username='testuser1',
         email='test1@example.com',
         password='testpass123',
         is_active=True
     )
-    inactive_user = User.objects.create_user(
+    inactive_user = CustomUser.objects.create_user(
         username='testuser2',
         email='test2@example.com',
         password='testpass123',
         is_active=False
     )
-    dev_user = User.objects.create_user(
+    dev_user = CustomUser.objects.create_user(
         username='testdev',
         email='dev@test.com',
         password='testpass123'
     )
-    qa_user = User.objects.create_user(
+    qa_user = CustomUser.objects.create_user(
         username='testqa',
         email='qa@test.com',
         password='testpass123'
     )
-    pm_user = User.objects.create_user(
+    pm_user = CustomUser.objects.create_user(
         username='testpm',
         email='pm@test.com',
         password='testpass123'
@@ -55,6 +53,46 @@ def users(db):
         'dev': dev_user,
         'qa': qa_user,
         'pm': pm_user
+    }
+
+
+@pytest.fixture
+def projects(db, users):
+    """Create test projects for task organization."""
+    main_project = Project.objects.create(
+        code='TST',
+        name='Test Project',
+        description='Main project for testing',
+        owner=users['pm'],
+        is_active=True
+    )
+    api_project = Project.objects.create(
+        code='API',
+        name='API Development',
+        description='Backend API development',
+        owner=users['dev'],
+        is_active=True
+    )
+    web_project = Project.objects.create(
+        code='WEB',
+        name='Web Frontend',
+        description='Frontend web development',
+        owner=users['qa'],
+        is_active=True
+    )
+    inactive_project = Project.objects.create(
+        code='OLD',
+        name='Legacy Project',
+        description='Inactive legacy project',
+        owner=users['pm'],
+        is_active=False
+    )
+    
+    return {
+        'main': main_project,
+        'api': api_project,
+        'web': web_project,
+        'inactive': inactive_project
     }
 
 
@@ -92,9 +130,10 @@ def authenticated_client(api_client, users):
 
 
 @pytest.fixture
-def sample_task(db, users):
+def sample_task(db, users, projects):
     """Create a basic sample task for testing."""
     return Task.objects.create(
+        project=projects['main'],
         title='Sample Task',
         description='A sample task for testing',
         status=TaskStatus.TODO,
@@ -103,10 +142,11 @@ def sample_task(db, users):
 
 
 @pytest.fixture
-def sample_tasks(db, users, tags):
+def sample_tasks(db, users, projects, tags):
     """Create a variety of sample tasks for comprehensive testing."""
     # Basic TODO task
     todo_task = Task.objects.create(
+        project=projects['web'],
         title='TODO Task',
         description='A task in TODO status',
         status=TaskStatus.TODO,
@@ -116,6 +156,7 @@ def sample_tasks(db, users, tags):
     
     # In Progress task with estimate and assignee
     in_progress_task = Task.objects.create(
+        project=projects['api'],
         title='In Progress Task',
         description='A task currently being worked on',
         status=TaskStatus.IN_PROGRESS,
@@ -127,6 +168,7 @@ def sample_tasks(db, users, tags):
     
     # Blocked task
     blocked_task = Task.objects.create(
+        project=projects['main'],
         title='Blocked Task',
         description='A task that is currently blocked',
         status=TaskStatus.BLOCKED,
@@ -138,6 +180,7 @@ def sample_tasks(db, users, tags):
     
     # Completed task
     done_task = Task.objects.create(
+        project=projects['api'],
         title='Completed Task',
         description='A task that has been completed',
         status=TaskStatus.DONE,
@@ -156,13 +199,22 @@ def sample_tasks(db, users, tags):
 
 
 @pytest.fixture
-def performance_test_data(db, users, tags):
+def performance_test_data(db, users, projects, tags):
     """Create test data for performance testing."""
     tasks = []
     
-    # Create 100 tasks for performance testing
+    # Create 100 tasks for performance testing across different projects
     for i in range(100):
+        # Distribute tasks across projects
+        if i % 3 == 0:
+            project = projects['main']
+        elif i % 3 == 1:
+            project = projects['api']
+        else:
+            project = projects['web']
+            
         task = Task.objects.create(
+            project=project,
             title=f'Performance Test Task {i}',
             description=f'Task {i} for performance testing',
             status=TaskStatus.TODO if i % 4 == 0 else TaskStatus.IN_PROGRESS if i % 4 == 1 else TaskStatus.BLOCKED if i % 4 == 2 else TaskStatus.DONE,
@@ -185,10 +237,11 @@ def performance_test_data(db, users, tags):
 
 
 @pytest.fixture
-def similarity_test_tasks(db, users, tags):
+def similarity_test_tasks(db, users, projects, tags):
     """Create tasks for similarity algorithm testing."""
     # Base task to find similarities for
     base_task = Task.objects.create(
+        project=projects['main'],
         title='Find similar tasks for this one',
         description='This is the base task for similarity testing',
         status=TaskStatus.TODO,
@@ -199,6 +252,7 @@ def similarity_test_tasks(db, users, tags):
     
     # Similar task - same assignee
     similar_assignee = Task.objects.create(
+        project=projects['api'],
         title='Different title but same assignee',
         description='Different description',
         status=TaskStatus.DONE,
@@ -209,6 +263,7 @@ def similarity_test_tasks(db, users, tags):
     
     # Similar task - overlapping tags
     similar_tags = Task.objects.create(
+        project=projects['web'],
         title='Task with similar tags',
         description='This task has overlapping tags',
         status=TaskStatus.DONE,
@@ -220,6 +275,7 @@ def similarity_test_tasks(db, users, tags):
     
     # Similar task - title match
     similar_title = Task.objects.create(
+        project=projects['main'],
         title='Find similar implementation',
         description='Different description but similar title',
         status=TaskStatus.DONE,
@@ -230,6 +286,7 @@ def similarity_test_tasks(db, users, tags):
     
     # Similar task - description match
     similar_description = Task.objects.create(
+        project=projects['api'],
         title='Completely different title',
         description='This is the base description for testing',
         status=TaskStatus.DONE,
@@ -240,6 +297,7 @@ def similarity_test_tasks(db, users, tags):
     
     # Dissimilar task
     dissimilar = Task.objects.create(
+        project=projects['web'],
         title='Unrelated task',
         description='No similarity whatsoever',
         status=TaskStatus.DONE,

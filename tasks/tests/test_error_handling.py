@@ -4,12 +4,10 @@ Tests all validation rules, error response formats, and HTTP status codes.
 """
 import pytest
 import uuid
-from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
+from accounts.models import CustomUser
 from tasks.models import Task, Tag, TaskStatus
-
-User = get_user_model()
 
 
 # Fixtures are now in conftest.py

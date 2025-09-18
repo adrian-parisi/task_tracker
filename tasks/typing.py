@@ -2,9 +2,7 @@
 Type aliases and typing utilities for the task management system.
 """
 from typing import Any, Dict, List, Union
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from accounts.models import CustomUser
 from django.db.models import QuerySet
 from .models import Task, Tag, TaskActivity
 
@@ -12,7 +10,7 @@ from .models import Task, Tag, TaskActivity
 TaskQuerySet = QuerySet[Task]
 TagQuerySet = QuerySet[Tag]
 ActivityQuerySet = QuerySet[TaskActivity]
-UserQuerySet = QuerySet[User]
+UserQuerySet = QuerySet[CustomUser]
 
 # API Response types
 APIResponse = Dict[str, Any]
@@ -54,7 +52,7 @@ ViewResponse = Any  # Will be properly typed when DRF types are available
 ViewKwargs = Dict[str, Any]
 
 # Activity logging types
-ActivityActor = User | None
+ActivityActor = CustomUser | None
 ActivityType = str
 ActivityField = str
 ActivityBefore = Any
@@ -79,15 +77,15 @@ TaskStatus = str
 TaskTitle = str
 TaskDescription = str
 TaskEstimate = int | None
-TaskAssignee = User | None
-TaskReporter = User | None
+TaskAssignee = CustomUser | None
+TaskReporter = CustomUser | None
 TaskTags = List[Tag]
 TaskCreatedAt = Any  # datetime
 TaskUpdatedAt = Any  # datetime
 
 # Activity model types
 ActivityTask = Task
-ActivityActor = User | None
+ActivityActor = CustomUser | None
 ActivityType = str
 ActivityField = str
 ActivityBefore = Any

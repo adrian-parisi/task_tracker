@@ -3,12 +3,10 @@ Integration tests for Task API endpoints using pytest.
 Tests all CRUD operations, filtering, pagination, and validation.
 """
 import pytest
-from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
+from accounts.models import CustomUser
 from tasks.models import Task, Tag, TaskStatus
-
-User = get_user_model()
 
 
 # Fixtures are now in conftest.py

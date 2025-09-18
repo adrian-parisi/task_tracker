@@ -3,10 +3,8 @@ Pytest fixtures for AI Tools tests.
 Provides reusable test data and setup for consistent testing.
 """
 import pytest
-from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-
-User = get_user_model()
+from accounts.models import CustomUser
 from tasks.models import Task, TaskActivity, ActivityType, Tag, TaskStatus
 
 
@@ -27,25 +25,25 @@ def authenticated_client(api_client, users):
 def users(db):
     """Create test users with different roles based on username patterns."""
     return {
-        'dev': User.objects.create_user(
+        'dev': CustomUser.objects.create_user(
             username='testdev',
             email='dev@test.com',
             first_name='Test',
             last_name='Developer'
         ),
-        'qa': User.objects.create_user(
+        'qa': CustomUser.objects.create_user(
             username='testqa',
             email='qa@test.com',
             first_name='Test',
             last_name='QA'
         ),
-        'pm': User.objects.create_user(
+        'pm': CustomUser.objects.create_user(
             username='testpm',
             email='pm@test.com',
             first_name='Test',
             last_name='Manager'
         ),
-        'user': User.objects.create_user(
+        'user': CustomUser.objects.create_user(
             username='testuser',
             email='user@test.com',
             first_name='Test',

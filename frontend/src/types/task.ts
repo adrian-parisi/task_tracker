@@ -4,12 +4,13 @@ export interface Task {
     description: string;
     status: TaskStatus;
     estimate?: number;
+    project?: string; // Project ID for write operations
+    project_detail?: Project | null; // Full project object for read operations
     assignee?: number; // User ID for write operations
     assignee_detail?: TaskUser | null; // Full user object for read operations
     reporter?: number; // User ID for write operations
     reporter_detail?: TaskUser | null; // Full user object for read operations
-    tags: Tag[];
-    tags_detail?: Tag[];
+    tags: string[];
     created_at: string;
     updated_at: string;
 }
@@ -33,9 +34,13 @@ export interface User {
 // TaskUser is an alias for User to maintain backward compatibility
 export type TaskUser = User;
 
-export interface Tag {
-    id: number;
+
+export interface Project {
+    id: string;
+    code: string;
     name: string;
+    description?: string;
+    is_active: boolean;
 }
 
 export interface SmartSummaryResponse {

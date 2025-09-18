@@ -250,10 +250,10 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
                                                 Tags:
                                             </Typography>
                                             <Box display="flex" gap={1} flexWrap="wrap">
-                                                {task.tags.map((tag) => (
+                                                {task.tags.map((tag, index) => (
                                                     <Chip
-                                                        key={tag.id}
-                                                        label={tag.name}
+                                                        key={index}
+                                                        label={tag}
                                                         variant="outlined"
                                                         size="small"
                                                     />
