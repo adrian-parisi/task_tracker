@@ -5,35 +5,68 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.request import Request
-from ..services import get_ai_service
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from ..services.factory import get_ai_service
 from ..utils import validate_and_get_task
+from ..serializers import SmartEstimateResponseSerializer
 
 logger = logging.getLogger(__name__)
 
 
-@api_view(['GET'])
+@extend_schema(
+    operation_id="smart_estimate",
+    summary="Generate AI estimate for a task",
+    description="Generate a smart estimate suggestion for a task based on similar tasks and historical data.",
+    request=None,
+    responses={
+        200: OpenApiResponse(
+            response=SmartEstimateResponseSerializer,
+            description="Successfully generated estimate suggestion"
+        ),
+        400: OpenApiResponse(
+            description="Invalid task ID or task not found"
+        ),
+        401: OpenApiResponse(
+            description="Authentication required"
+        ),
+        500: OpenApiResponse(
+            description="Internal server error during estimate generation"
+        )
+    },
+    tags=["AI Tools"]
+)
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def smart_estimate_view(request: Request, task_id: str) -> Response:
     """
-    Generate a smart estimate suggestion for a task.
+    Generate AI estimate synchronously and return the result.
     
-    Uses similarity service to find similar tasks and calculate estimate suggestion.
+    This endpoint analyzes the task and provides an estimate suggestion based on:
+    - Similar tasks in the system
+    - Historical estimation data
+    - Task complexity indicators
     
     Args:
         request: HTTP request object
         task_id: UUID of the task to generate estimate for
         
     Returns:
-        JSON response with suggested_points, confidence, similar_task_ids, and rationale
+        JSON response with estimate suggestion data including:
+        - suggested_points: Recommended estimate in points
+        - confidence: Confidence score (0.0 to 1.0)
+        - similar_task_ids: List of similar task IDs used
+        - rationale: Human-readable explanation
     """
     # Validate task_id format and get task
     task = validate_and_get_task(task_id)
     
-    # Generate estimate using AI service
+    # Get AI service and generate estimate
     ai_service = get_ai_service()
-    estimate_data = ai_service.generate_estimate(task)
+    estimate_result = ai_service.generate_estimate(task)
     
     # Log the AI tool invocation
-    logger.info(f"Smart estimate generated for task {task.id} by user {request.user.id}")
+    logger.info(f"Smart estimate completed for Task {task.id} by user {request.user.id}")
     
-    return Response(estimate_data, status=status.HTTP_200_OK)
+    # Serialize and return response
+    serializer = SmartEstimateResponseSerializer(estimate_result)
+    return Response(serializer.data, status=status.HTTP_200_OK)

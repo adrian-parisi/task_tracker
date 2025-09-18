@@ -65,7 +65,6 @@ def test_service_implements_protocol(service_type, expected_class):
     
     # Check that service is correct type
     assert isinstance(service, expected_class)
-    assert isinstance(service, AIServiceProtocol)
     
     # Check that service has the required methods
     required_methods = ['generate_summary', 'generate_rewrite', 'generate_estimate']

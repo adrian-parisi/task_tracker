@@ -91,14 +91,19 @@ const UserAutocomplete: React.FC<UserAutocompleteProps> = ({
 
     // Check if two users are equal
     const isOptionEqualToValue = (option: User, value: User): boolean => {
-        return option.id === value.id;
+        const isEqual = option.id === value.id;
+        console.log('UserAutocomplete - Comparing users:', { option, value, isEqual });
+        return isEqual;
     };
 
     return (
         <Box>
             <Autocomplete
                 value={value}
-                onChange={(_, newValue) => onChange(newValue)}
+                onChange={(_, newValue) => {
+                    console.log('UserAutocomplete - User selected:', newValue);
+                    onChange(newValue);
+                }}
                 inputValue={inputValue}
                 onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
                 open={open}

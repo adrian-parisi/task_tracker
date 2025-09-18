@@ -52,20 +52,17 @@ class TaskSerializer(serializers.ModelSerializer):
     # Write-only fields for relationships
     project = serializers.PrimaryKeyRelatedField(
         queryset=Project.objects.filter(is_active=True),
-        required=True,
-        write_only=True
+        required=True
     )
     assignee = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(),
         required=False,
-        allow_null=True,
-        write_only=True
+        allow_null=True
     )
     reporter = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(),
         required=False,
-        allow_null=True,
-        write_only=True
+        allow_null=True
     )
     tags = serializers.ListField(
         child=serializers.CharField(max_length=64),
@@ -85,6 +82,11 @@ class TaskSerializer(serializers.ModelSerializer):
             'activity_count', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'key', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'assignee': {'write_only': True},
+            'reporter': {'write_only': True},
+            'project': {'write_only': True}
+        }
     
     def get_activity_count(self, obj: Task) -> int:
         """Return the count of activities for this task."""
@@ -242,7 +244,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         
+        # Set current user for activity logging
         task = serializer.save()
+        task._current_user = request.user
+        task.save()  # Trigger activity logging
         
         # Return full task data with nested relationships
         response_serializer = TaskSerializer(task)
@@ -255,6 +260,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         
+        # Set current user for activity logging
+        instance._current_user = request.user
         task = serializer.save()
         
         # Return full task data with nested relationships

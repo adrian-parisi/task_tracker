@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { Task, SmartSummaryResponse, SmartEstimateResponse, SmartRewriteResponse, TaskStatus } from '../types/task';
 import { TaskService, TaskServiceError } from '../services/taskService';
+import { sseService } from '../services/sseService';
 import SummaryDisplay from './SummaryDisplay';
 import EstimateDisplay from './EstimateDisplay';
 import RewriteDisplay from './RewriteDisplay';
@@ -57,6 +58,13 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
         loadTask();
     }, [taskId]);
 
+    // Cleanup SSE connection on unmount
+    useEffect(() => {
+        return () => {
+            sseService.disconnect();
+        };
+    }, []);
+
     const loadTask = async () => {
         try {
             setLoading(true);
@@ -78,16 +86,36 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
         try {
             setAiLoading(prev => ({ ...prev, summary: true }));
             setAiErrors(prev => ({ ...prev, summary: '' }));
-            const summaryData = await TaskService.getSmartSummary(taskId);
-            setSummary(summaryData);
+            
+            // Start the operation
+            const operation = await TaskService.startSmartSummary(taskId);
+            
+            // Connect to SSE stream
+            sseService.connect(
+                operation.operation_id,
+                (data) => {
+                    if (data.status === 'completed') {
+                        setSummary(data.result);
+                        setAiLoading(prev => ({ ...prev, summary: false }));
+                    } else if (data.status === 'failed') {
+                        setAiErrors(prev => ({ ...prev, summary: data.error || 'Summary generation failed' }));
+                        setAiLoading(prev => ({ ...prev, summary: false }));
+                    }
+                    // Handle 'processing' status if needed for UI feedback
+                },
+                (error) => {
+                    setAiErrors(prev => ({ ...prev, summary: 'Connection lost. Please try again.' }));
+                    setAiLoading(prev => ({ ...prev, summary: false }));
+                }
+            );
+            
         } catch (err) {
             const errorMessage = err instanceof TaskServiceError 
                 ? err.message 
-                : 'Failed to generate summary';
+                : 'Failed to start summary generation';
             setAiErrors(prev => ({ ...prev, summary: errorMessage }));
-            console.error('Failed to get smart summary:', err);
-        } finally {
             setAiLoading(prev => ({ ...prev, summary: false }));
+            console.error('Failed to start smart summary:', err);
         }
     };
 
@@ -95,16 +123,19 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
         try {
             setAiLoading(prev => ({ ...prev, estimate: true }));
             setAiErrors(prev => ({ ...prev, estimate: '' }));
-            const estimateData = await TaskService.getSmartEstimate(taskId);
-            setEstimate(estimateData);
+            
+            // Get estimate synchronously
+            const estimateResult = await TaskService.getSmartEstimate(taskId);
+            setEstimate(estimateResult);
+            setAiLoading(prev => ({ ...prev, estimate: false }));
+            
         } catch (err) {
             const errorMessage = err instanceof TaskServiceError 
                 ? err.message 
-                : 'Failed to calculate estimate';
+                : 'Failed to get estimate';
             setAiErrors(prev => ({ ...prev, estimate: errorMessage }));
-            console.error('Failed to get smart estimate:', err);
-        } finally {
             setAiLoading(prev => ({ ...prev, estimate: false }));
+            console.error('Failed to get smart estimate:', err);
         }
     };
 
@@ -112,16 +143,19 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ taskId, onBack, onEdit }) => {
         try {
             setAiLoading(prev => ({ ...prev, rewrite: true }));
             setAiErrors(prev => ({ ...prev, rewrite: '' }));
-            const rewriteData = await TaskService.getSmartRewrite(taskId);
-            setRewrite(rewriteData);
+            
+            // Get rewrite synchronously
+            const rewriteResult = await TaskService.getSmartRewrite(taskId);
+            setRewrite(rewriteResult);
+            setAiLoading(prev => ({ ...prev, rewrite: false }));
+            
         } catch (err) {
             const errorMessage = err instanceof TaskServiceError 
                 ? err.message 
-                : 'Failed to generate rewrite';
+                : 'Failed to get rewrite';
             setAiErrors(prev => ({ ...prev, rewrite: errorMessage }));
-            console.error('Failed to get smart rewrite:', err);
-        } finally {
             setAiLoading(prev => ({ ...prev, rewrite: false }));
+            console.error('Failed to get smart rewrite:', err);
         }
     };
 

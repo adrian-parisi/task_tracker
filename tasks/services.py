@@ -53,14 +53,65 @@ class ActivityService:
             original_value = getattr(original_task, field_name)
             updated_value = getattr(updated_task, field_name)
             
-            if original_value != updated_value:
-                changes[field_name] = {
-                    'before': original_value,
-                    'after': updated_value,
-                    'activity_type': activity_type
-                }
+            # For foreign key fields, compare the actual objects, not just IDs
+            if field_name in ['assignee', 'reporter']:
+                original_id = original_value.id if original_value else None
+                updated_id = updated_value.id if updated_value else None
+                if original_id != updated_id:
+                    # Convert foreign key objects to serializable values
+                    before_value = ActivityService._serialize_field_value(original_value)
+                    after_value = ActivityService._serialize_field_value(updated_value)
+                    
+                    changes[field_name] = {
+                        'before': before_value,
+                        'after': after_value,
+                        'activity_type': activity_type
+                    }
+            else:
+                if original_value != updated_value:
+                    # Convert foreign key objects to serializable values
+                    before_value = ActivityService._serialize_field_value(original_value)
+                    after_value = ActivityService._serialize_field_value(updated_value)
+                    
+                    changes[field_name] = {
+                        'before': before_value,
+                        'after': after_value,
+                        'activity_type': activity_type
+                    }
         
         return changes
+    
+    @staticmethod
+    def _serialize_field_value(value: Any) -> Any:
+        """
+        Convert field values to JSON-serializable format.
+        
+        Args:
+            value: The field value to serialize
+            
+        Returns:
+            JSON-serializable value
+        """
+        if value is None:
+            return None
+        
+        # Handle CustomUser objects
+        if hasattr(value, 'username'):  # CustomUser instance
+            return {
+                'id': str(value.id),
+                'username': value.username,
+                'email': value.email
+            }
+        
+        # Handle other model instances
+        if hasattr(value, 'pk'):
+            return {
+                'id': str(value.pk),
+                'str': str(value)
+            }
+        
+        # Return primitive values as-is
+        return value
     
     @staticmethod
     def log_field_changes(

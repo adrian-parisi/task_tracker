@@ -5,7 +5,7 @@ Provides reusable test data and setup for consistent testing.
 import pytest
 from rest_framework.test import APIClient
 from accounts.models import CustomUser
-from tasks.models import Task, Tag, Project, TaskStatus
+from tasks.models import Task, Project, TaskStatus
 
 
 @pytest.fixture
@@ -97,29 +97,12 @@ def projects(db, users):
 
 
 @pytest.fixture
-def tags(db):
-    """Create test tags for categorization."""
-    backend_tag = Tag.objects.create(name='backend')
-    frontend_tag = Tag.objects.create(name='frontend')
-    urgent_tag = Tag.objects.create(name='urgent')
-    testing_tag = Tag.objects.create(name='testing')
-    performance_tag = Tag.objects.create(name='performance')
-    security_tag = Tag.objects.create(name='security')
-    ui_tag = Tag.objects.create(name='ui')
-    api_tag = Tag.objects.create(name='api')
-    database_tag = Tag.objects.create(name='database')
-    
-    return {
-        'backend': backend_tag,
-        'frontend': frontend_tag,
-        'urgent': urgent_tag,
-        'testing': testing_tag,
-        'performance': performance_tag,
-        'security': security_tag,
-        'ui': ui_tag,
-        'api': api_tag,
-        'database': database_tag
-    }
+def tag_names():
+    """Provide common tag names for testing."""
+    return [
+        'backend', 'frontend', 'urgent', 'testing', 'performance', 
+        'security', 'ui', 'api', 'database'
+    ]
 
 
 @pytest.fixture
@@ -142,7 +125,7 @@ def sample_task(db, users, projects):
 
 
 @pytest.fixture
-def sample_tasks(db, users, projects, tags):
+def sample_tasks(db, users, projects):
     """Create a variety of sample tasks for comprehensive testing."""
     # Basic TODO task
     todo_task = Task.objects.create(
@@ -150,9 +133,9 @@ def sample_tasks(db, users, projects, tags):
         title='TODO Task',
         description='A task in TODO status',
         status=TaskStatus.TODO,
-        reporter=users['user1']
+        reporter=users['user1'],
+        tags=['frontend']
     )
-    todo_task.tags.add(tags['frontend'])
     
     # In Progress task with estimate and assignee
     in_progress_task = Task.objects.create(
@@ -162,9 +145,9 @@ def sample_tasks(db, users, projects, tags):
         status=TaskStatus.IN_PROGRESS,
         estimate=5,
         assignee=users['dev'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['backend', 'urgent']
     )
-    in_progress_task.tags.add(tags['backend'], tags['urgent'])
     
     # Blocked task
     blocked_task = Task.objects.create(
@@ -174,9 +157,9 @@ def sample_tasks(db, users, projects, tags):
         status=TaskStatus.BLOCKED,
         estimate=8,
         assignee=users['qa'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['testing']
     )
-    blocked_task.tags.add(tags['testing'])
     
     # Completed task
     done_task = Task.objects.create(
@@ -186,9 +169,9 @@ def sample_tasks(db, users, projects, tags):
         status=TaskStatus.DONE,
         estimate=3,
         assignee=users['dev'],
-        reporter=users['user1']
+        reporter=users['user1'],
+        tags=['api', 'backend']
     )
-    done_task.tags.add(tags['api'], tags['backend'])
     
     return {
         'todo': todo_task,
@@ -199,7 +182,7 @@ def sample_tasks(db, users, projects, tags):
 
 
 @pytest.fixture
-def performance_test_data(db, users, projects, tags):
+def performance_test_data(db, users, projects):
     """Create test data for performance testing."""
     tasks = []
     
@@ -212,6 +195,15 @@ def performance_test_data(db, users, projects, tags):
             project = projects['api']
         else:
             project = projects['web']
+        
+        # Determine tags based on task number
+        task_tags = []
+        if i % 5 == 0:
+            task_tags = ['backend']
+        elif i % 5 == 1:
+            task_tags = ['frontend']
+        elif i % 5 == 2:
+            task_tags = ['testing']
             
         task = Task.objects.create(
             project=project,
@@ -220,16 +212,9 @@ def performance_test_data(db, users, projects, tags):
             status=TaskStatus.TODO if i % 4 == 0 else TaskStatus.IN_PROGRESS if i % 4 == 1 else TaskStatus.BLOCKED if i % 4 == 2 else TaskStatus.DONE,
             estimate=i % 10 + 1 if i % 4 == 3 else None,  # Only DONE tasks have estimates
             assignee=users['dev'] if i % 3 == 0 else users['qa'] if i % 3 == 1 else None,
-            reporter=users['pm']
+            reporter=users['pm'],
+            tags=task_tags
         )
-        
-        # Add tags to some tasks
-        if i % 5 == 0:
-            task.tags.add(tags['backend'])
-        elif i % 5 == 1:
-            task.tags.add(tags['frontend'])
-        elif i % 5 == 2:
-            task.tags.add(tags['testing'])
         
         tasks.append(task)
     
@@ -237,7 +222,7 @@ def performance_test_data(db, users, projects, tags):
 
 
 @pytest.fixture
-def similarity_test_tasks(db, users, projects, tags):
+def similarity_test_tasks(db, users, projects):
     """Create tasks for similarity algorithm testing."""
     # Base task to find similarities for
     base_task = Task.objects.create(
@@ -246,9 +231,9 @@ def similarity_test_tasks(db, users, projects, tags):
         description='This is the base task for similarity testing',
         status=TaskStatus.TODO,
         assignee=users['dev'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['backend']
     )
-    base_task.tags.add(tags['backend'])
     
     # Similar task - same assignee
     similar_assignee = Task.objects.create(
@@ -269,9 +254,9 @@ def similarity_test_tasks(db, users, projects, tags):
         status=TaskStatus.DONE,
         estimate=3,
         assignee=users['qa'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['backend', 'api']
     )
-    similar_tags.tags.add(tags['backend'], tags['api'])
     
     # Similar task - title match
     similar_title = Task.objects.create(
@@ -303,9 +288,9 @@ def similarity_test_tasks(db, users, projects, tags):
         status=TaskStatus.DONE,
         estimate=7,
         assignee=users['user1'],
-        reporter=users['user1']
+        reporter=users['user1'],
+        tags=['performance']
     )
-    dissimilar.tags.add(tags['performance'])
     
     return {
         'base': base_task,

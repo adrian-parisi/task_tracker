@@ -18,6 +18,7 @@ import {
 import { Psychology } from '@mui/icons-material';
 import { Task, TaskStatus, SmartEstimateResponse, User } from '../types/task';
 import { TaskService } from '../services/taskService';
+import { sseService } from '../services/sseService';
 import UserAutocomplete from './UserAutocomplete';
 
 interface TaskFormProps {
@@ -60,8 +61,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
         }
     }, [task]);
 
+    // Cleanup SSE connections on unmount
+    useEffect(() => {
+        return () => {
+            sseService.disconnect();
+        };
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('TaskForm - Form submitted');
 
         if (!formData.title.trim()) {
             setError('Title is required');
@@ -83,6 +92,9 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
                 tags: formData.tags
             };
 
+            console.log('TaskForm - Sending task data:', taskData);
+            console.log('TaskForm - Form data state:', formData);
+
             let savedTask: Task;
             if (task) {
                 // For updates, don't include project field
@@ -93,10 +105,24 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
                 savedTask = await TaskService.createTask(taskData);
             }
 
+            console.log('TaskForm - Task saved successfully:', savedTask);
             onSave(savedTask);
         } catch (err) {
-            setError(task ? 'Failed to update task' : 'Failed to create task');
-            console.error('Failed to save task:', err);
+            console.error('Failed to save task - Full error:', err);
+            console.error('Form data state:', formData);
+            
+            let errorMessage = task ? 'Failed to update task' : 'Failed to create task';
+            
+            // Check if it's a validation error
+            if (err instanceof Error && 'status' in err) {
+                const taskError = err as any;
+                if (taskError.status === 400 && taskError.details) {
+                    console.error('Validation errors:', taskError.details);
+                    errorMessage = 'Validation failed. Please check the form data.';
+                }
+            }
+            
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -124,19 +150,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
         try {
             setEstimateLoading(true);
             setEstimateError('');
-            const response = await TaskService.getSmartEstimate(task.id);
-            setSmartEstimate(response);
+            setSmartEstimate(null);
             
-            // Auto-fill the estimate field with the suggested value
-            setFormData(prev => ({
-                ...prev,
-                estimate: response.suggested_points.toString()
-            }));
-        } catch (err) {
-            setEstimateError('Failed to generate smart estimate');
-            console.error('Failed to generate smart estimate:', err);
-        } finally {
+            const estimateResult = await TaskService.getSmartEstimate(task.id);
+            console.log('Estimate completed:', estimateResult);
+            setSmartEstimate(estimateResult);
             setEstimateLoading(false);
+        } catch (err) {
+            setEstimateError('Failed to get estimate');
+            setEstimateLoading(false);
+            console.error('Failed to get estimate:', err);
         }
     };
 
@@ -238,6 +261,18 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSave, onCancel }) => {
                                         Based on {smartEstimate.similar_task_ids.length} similar task(s)
                                     </Typography>
                                 )}
+                                <Box mt={2}>
+                                    <Button 
+                                        size="small" 
+                                        variant="contained"
+                                        onClick={() => {
+                                            handleInputChange('estimate', smartEstimate.suggested_points.toString());
+                                            setSmartEstimate(null);
+                                        }}
+                                    >
+                                        Apply Estimate
+                                    </Button>
+                                </Box>
                             </Paper>
                         )}
                     </Box>

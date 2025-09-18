@@ -4,11 +4,10 @@ Type aliases and typing utilities for the task management system.
 from typing import Any, Dict, List, Union
 from accounts.models import CustomUser
 from django.db.models import QuerySet
-from .models import Task, Tag, TaskActivity
+from .models import Task, TaskActivity
 
 # Type aliases for common patterns
 TaskQuerySet = QuerySet[Task]
-TagQuerySet = QuerySet[Tag]
 ActivityQuerySet = QuerySet[TaskActivity]
 UserQuerySet = QuerySet[CustomUser]
 
@@ -32,13 +31,10 @@ PaginationParams = Dict[str, Union[int, str, None]]
 
 # Filter types
 TaskFilters = Dict[str, Union[str, int, List[int], None]]
-TagFilters = Dict[str, Union[str, None]]
 
 # Serializer data types
 TaskCreateData = Dict[str, Any]
 TaskUpdateData = Dict[str, Any]
-TagCreateData = Dict[str, str]
-TagUpdateData = Dict[str, str]
 
 # Signal types
 SignalSender = type[Task]
@@ -79,7 +75,7 @@ TaskDescription = str
 TaskEstimate = int | None
 TaskAssignee = CustomUser | None
 TaskReporter = CustomUser | None
-TaskTags = List[Tag]
+TaskTags = List[str]  # Array of tag names as strings
 TaskCreatedAt = Any  # datetime
 TaskUpdatedAt = Any  # datetime
 
@@ -92,9 +88,8 @@ ActivityBefore = Any
 ActivityAfter = Any
 ActivityCreatedAt = Any  # datetime
 
-# Tag model types
+# Tag types (now just strings in array field)
 TagName = str
-TagId = int
 
 # User model types
 UserId = int

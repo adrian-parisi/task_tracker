@@ -5,7 +5,7 @@ Provides reusable test data and setup for consistent testing.
 import pytest
 from rest_framework.test import APIClient
 from accounts.models import CustomUser
-from tasks.models import Task, TaskActivity, ActivityType, Tag, TaskStatus
+from tasks.models import Task, TaskActivity, ActivityType, TaskStatus, Project
 
 
 @pytest.fixture
@@ -53,21 +53,56 @@ def users(db):
 
 
 @pytest.fixture
-def tags(db):
-    """Create test tags for categorization."""
+def projects(db, users):
+    """Create test projects for task organization."""
+    main_project = Project.objects.create(
+        code='TST',
+        name='Test Project',
+        description='Main project for testing',
+        owner=users['pm']
+    )
+    
+    web_project = Project.objects.create(
+        code='WEB',
+        name='Web Frontend',
+        description='Frontend development project',
+        owner=users['dev']
+    )
+    
+    api_project = Project.objects.create(
+        code='API',
+        name='API Development',
+        description='Backend API development project',
+        owner=users['dev']
+    )
+    
+    inactive_project = Project.objects.create(
+        code='OLD',
+        name='Legacy Project',
+        description='Old project for testing inactive states',
+        owner=users['pm'],
+        is_active=False
+    )
+    
     return {
-        'frontend': Tag.objects.create(name='frontend'),
-        'backend': Tag.objects.create(name='backend'),
-        'testing': Tag.objects.create(name='testing'),
-        'performance': Tag.objects.create(name='performance'),
-        'security': Tag.objects.create(name='security')
+        'main': main_project,
+        'web': web_project,
+        'api': api_project,
+        'inactive': inactive_project
     }
 
 
 @pytest.fixture
-def basic_task(db, users):
+def tag_names():
+    """Provide common tag names for testing."""
+    return ['frontend', 'backend', 'testing', 'performance', 'security']
+
+
+@pytest.fixture
+def basic_task(db, users, projects):
     """Create a basic task for general testing."""
     return Task.objects.create(
+        project=projects['main'],
         title='Basic test task',
         description='A simple task for testing',
         status=TaskStatus.TODO,
@@ -77,48 +112,45 @@ def basic_task(db, users):
 
 
 @pytest.fixture
-def complex_task(db, users, tags):
+def complex_task(db, users):
     """Create a complex task with estimate and tags."""
-    task = Task.objects.create(
+    return Task.objects.create(
         title='Fix authentication bug',
         description='The login system should validate user credentials properly',
         status=TaskStatus.IN_PROGRESS,
         estimate=5,
         assignee=users['dev'],
-        reporter=users['qa']
+        reporter=users['qa'],
+        tags=['backend', 'security']
     )
-    task.tags.add(tags['backend'], tags['security'])
-    return task
 
 
 @pytest.fixture
-def completed_task(db, users, tags):
+def completed_task(db, users):
     """Create a completed task with multiple tags."""
-    task = Task.objects.create(
+    return Task.objects.create(
         title='Add user interface improvements',
         description='Update the UI to be more responsive',
         status=TaskStatus.DONE,
         estimate=8,
         assignee=users['qa'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['frontend', 'testing']
     )
-    task.tags.add(tags['frontend'], tags['testing'])
-    return task
 
 
 @pytest.fixture
-def blocked_task(db, users, tags):
+def blocked_task(db, users):
     """Create a blocked task for status-specific testing."""
-    task = Task.objects.create(
+    return Task.objects.create(
         title='Optimize database performance',
         description='Improve query performance for large datasets',
         status=TaskStatus.BLOCKED,
         estimate=13,
         assignee=users['dev'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['backend', 'performance']
     )
-    task.tags.add(tags['backend'], tags['performance'])
-    return task
 
 
 @pytest.fixture
@@ -170,7 +202,7 @@ def task_with_activities(db, users, basic_task):
 
 
 @pytest.fixture
-def similar_tasks_set(db, users, tags):
+def similar_tasks_set(db, users):
     """Create a set of tasks for similarity algorithm testing."""
     # Task 1: Same assignee as target
     task1 = Task.objects.create(
@@ -189,9 +221,9 @@ def similar_tasks_set(db, users, tags):
         status=TaskStatus.DONE,
         estimate=5,
         assignee=users['qa'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['backend']
     )
-    task2.tags.add(tags['backend'])
     
     # Task 3: Title substring match
     task3 = Task.objects.create(
@@ -220,9 +252,9 @@ def similar_tasks_set(db, users, tags):
         status=TaskStatus.DONE,
         estimate=7,
         assignee=users['user'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['performance']
     )
-    task5.tags.add(tags['performance'])
     
     return {
         'same_assignee': task1,
@@ -234,7 +266,7 @@ def similar_tasks_set(db, users, tags):
 
 
 @pytest.fixture
-def tasks_for_estimate_calculation(db, users, tags):
+def tasks_for_estimate_calculation(db, users):
     """Create tasks specifically for estimate calculation testing."""
     estimates = [2, 3, 3, 5, 8]  # Median should be 3
     tasks = []
@@ -246,9 +278,9 @@ def tasks_for_estimate_calculation(db, users, tags):
             status=TaskStatus.DONE,
             estimate=estimate,
             assignee=users['dev'],
-            reporter=users['pm']
+            reporter=users['pm'],
+            tags=['backend']
         )
-        task.tags.add(tags['backend'])
         tasks.append(task)
     
     return tasks
@@ -264,15 +296,13 @@ def minimal_task(db):
 
 
 @pytest.fixture
-def multi_tag_task(db, users, tags):
+def multi_tag_task(db, users):
     """Create a task with multiple tags for tag handling tests."""
-    task = Task.objects.create(
+    return Task.objects.create(
         title='Multi-tag task',
         description='Task with multiple tags for testing',
         status=TaskStatus.TODO,
         assignee=users['dev'],
-        reporter=users['pm']
+        reporter=users['pm'],
+        tags=['frontend', 'backend', 'testing']
     )
-    # Add tags in specific order to test sorting
-    task.tags.add(tags['frontend'], tags['backend'], tags['testing'])
-    return task

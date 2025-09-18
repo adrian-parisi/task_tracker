@@ -7,13 +7,14 @@ import uuid
 from django.urls import reverse
 from rest_framework import status
 from accounts.models import CustomUser
-from tasks.models import Task, Tag, TaskStatus
+from tasks.models import Task, TaskStatus
 
 
 # Fixtures are now in conftest.py
 
 
 @pytest.mark.integration
+@pytest.mark.django_db
 class TestStandardizedErrorFormat:
     """Test standardized error response format (requirement 8.1)."""
     

@@ -16,9 +16,10 @@ def user():
 
 
 @pytest.fixture
-def task(user):
+def task(user, projects):
     """Create a test task."""
     return Task.objects.create(
+        project=projects['main'],
         title='Test Task',
         description='Test description',
         status=TaskStatus.TODO,
@@ -42,10 +43,14 @@ def sample_activity(task, user):
 @pytest.fixture
 def activities_ordered(task):
     """Create activities in specific order for ordering tests."""
+    import time
+    
     activity1 = TaskActivity.objects.create(
         task=task,
         type=ActivityType.CREATED
     )
+    
+    time.sleep(0.1)  # Longer delay to ensure different timestamps
     
     activity2 = TaskActivity.objects.create(
         task=task,
@@ -58,6 +63,7 @@ def activities_ordered(task):
     return [activity1, activity2]
 
 
+@pytest.mark.django_db
 class TestTaskActivityModel:
     """Test cases for TaskActivity model."""
     

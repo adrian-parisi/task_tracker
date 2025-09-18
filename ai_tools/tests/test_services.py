@@ -5,9 +5,10 @@ import logging
 from unittest.mock import patch
 import pytest
 from accounts.models import CustomUser
-from tasks.models import Task, TaskActivity, ActivityType, Tag, TaskStatus
+from tasks.models import Task, TaskActivity, ActivityType, TaskStatus
 from ai_tools.services import MockedAIService
 
+@pytest.mark.django_db
 def test_generate_summary_basic_task(basic_task, users):
     """Test summary generation for a basic task with minimal activities."""
     # Create a creation activity

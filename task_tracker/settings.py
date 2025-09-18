@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'django_filters',
+    'drf_spectacular',
+    'django_celery_beat',
+    'django_celery_results',
     'common',
     'accounts',
     'tasks',
@@ -141,6 +144,22 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'tasks.pagination.TaskPagination',
     'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'task_tracker.exceptions.custom_exception_handler',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Task Tracker API',
+    'DESCRIPTION': 'A comprehensive task management system with AI-powered tools',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/',
+    'TAGS': [
+        {'name': 'Tasks', 'description': 'Task management operations'},
+        {'name': 'AI Tools', 'description': 'AI-powered task analysis and enhancement tools'},
+        {'name': 'Authentication', 'description': 'User authentication and management'},
+    ]
 }
 
 # CORS settings - Allow all for development
@@ -159,3 +178,15 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+# Celery Configuration - Using file-based broker for simplicity (development only)
+CELERY_BROKER_URL = 'filesystem://'
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'data_folder_in': '/tmp/celery_broker',
+    'data_folder_out': '/tmp/celery_broker',
+}
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'

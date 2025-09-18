@@ -280,7 +280,7 @@ def test_find_similar_tasks_same_assignee(mock_task_model, ai_service, mock_task
 
 @pytest.mark.parametrize("estimates,similar_count,expected_min_confidence", [
     ([3, 5, 4, 6, 4], 10, 0.5),
-    ([5], 5, 0.0),
+    ([5], 5, 0.7),  # Single estimate should have reasonable confidence
     ([], 0, 0.40),
 ])
 def test_calculate_estimate_confidence(ai_service, estimates, similar_count, expected_min_confidence):

@@ -57,6 +57,7 @@ class Task(BaseModel):
     )
     
     class Meta:
+        ordering = ['-updated_at']
         indexes = [
             models.Index(fields=['key']),
             models.Index(fields=['project']),
@@ -72,6 +73,10 @@ class Task(BaseModel):
     def clean(self) -> None:
         """Perform model-level validation."""
         super().clean()
+        
+        # Strip whitespace from title
+        if self.title:
+            self.title = self.title.strip()
         
         # Validate title
         if self.title:
@@ -120,8 +125,8 @@ class Task(BaseModel):
     
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save to ensure validation is called and key is generated."""
-        # Generate key if this is a new task
-        if not self.key and self.project:
+        # Generate key if this is a new task and has a project
+        if not self.key and self.project_id:
             # Use transaction to ensure atomicity
             with transaction.atomic():
                 self.key = self._generate_task_key()

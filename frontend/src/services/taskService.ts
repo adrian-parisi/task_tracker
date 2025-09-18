@@ -102,15 +102,19 @@ export class TaskService {
         }
     }
 
-    // AI Tool Methods
-    static async getSmartSummary(taskId: string): Promise<SmartSummaryResponse> {
+    // AI Tool Methods - Now async operations
+    static async startSmartSummary(taskId: string): Promise<{
+        operation_id: string;
+        status: string;
+        sse_url: string;
+    }> {
         try {
-            const response = await apiClient.get(`/tasks/${taskId}/smart-summary/`);
+            const response = await apiClient.post(`/tasks/${taskId}/smart-summary/`);
             return response.data;
         } catch (error: any) {
             const message = error.response?.status === 404 
                 ? 'Task not found for summary generation' 
-                : 'Failed to generate smart summary';
+                : 'Failed to start smart summary generation';
             throw new TaskServiceError(
                 message,
                 error.response?.status,
@@ -121,12 +125,12 @@ export class TaskService {
 
     static async getSmartEstimate(taskId: string): Promise<SmartEstimateResponse> {
         try {
-            const response = await apiClient.get(`/tasks/${taskId}/smart-estimate/`);
+            const response = await apiClient.post(`/tasks/${taskId}/smart-estimate/`);
             return response.data;
         } catch (error: any) {
             const message = error.response?.status === 404 
                 ? 'Task not found for estimate calculation' 
-                : 'Failed to calculate smart estimate';
+                : 'Failed to get smart estimate';
             throw new TaskServiceError(
                 message,
                 error.response?.status,
@@ -137,12 +141,12 @@ export class TaskService {
 
     static async getSmartRewrite(taskId: string): Promise<SmartRewriteResponse> {
         try {
-            const response = await apiClient.get(`/tasks/${taskId}/smart-rewrite/`);
+            const response = await apiClient.post(`/tasks/${taskId}/smart-rewrite/`);
             return response.data;
         } catch (error: any) {
             const message = error.response?.status === 404 
                 ? 'Task not found for rewrite generation' 
-                : 'Failed to generate smart rewrite';
+                : 'Failed to get smart rewrite';
             throw new TaskServiceError(
                 message,
                 error.response?.status,

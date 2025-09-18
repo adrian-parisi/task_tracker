@@ -13,6 +13,7 @@ class TaskActivity(BaseModel):
     after = models.JSONField(null=True, blank=True)
     
     class Meta:
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['task', '-created_at']),
         ]

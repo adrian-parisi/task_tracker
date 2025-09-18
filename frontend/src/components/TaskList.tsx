@@ -17,7 +17,9 @@ import {
     DialogContent,
     DialogActions,
     Alert,
-    CircularProgress
+    CircularProgress,
+    Collapse,
+    Paper
 } from '@mui/material';
 import {
     Add,
@@ -27,10 +29,13 @@ import {
     AutoAwesome,
     EditNote,
     Person,
-    Flag
+    Flag,
+    ExpandMore,
+    ExpandLess
 } from '@mui/icons-material';
-import { Task, TaskStatus, SmartRewriteResponse } from '../types/task';
+import { Task, TaskStatus, SmartRewriteResponse, SmartSummaryResponse } from '../types/task';
 import { TaskService } from '../services/taskService';
+import { sseService } from '../services/sseService';
 import { User } from '../types/task';
 import TaskForm from './TaskForm';
 import UserAutocomplete from './UserAutocomplete';
@@ -53,6 +58,23 @@ const TaskList: React.FC = () => {
     const [rewrite, setRewrite] = useState<SmartRewriteResponse | null>(null);
     const [rewriteLoading, setRewriteLoading] = useState(false);
     const [rewriteError, setRewriteError] = useState<string>('');
+    
+    // AI operations state per task
+    const [taskAiOperations, setTaskAiOperations] = useState<Record<string, {
+        summary: {
+            loading: boolean;
+            result: SmartSummaryResponse | null;
+            error: string;
+            expanded: boolean;
+        };
+        rewrite: {
+            loading: boolean;
+            result: SmartRewriteResponse | null;
+            error: string;
+            expanded: boolean;
+        };
+    }>>({});
+    
     const [filters, setFilters] = useState({
         status: '',
         assignee: null as User | null
@@ -61,6 +83,13 @@ const TaskList: React.FC = () => {
     useEffect(() => {
         loadTasks();
     }, [filters]);
+
+    // Cleanup SSE connections on unmount
+    useEffect(() => {
+        return () => {
+            sseService.disconnect();
+        };
+    }, []);
 
     const loadTasks = async () => {
         try {
@@ -110,38 +139,136 @@ const TaskList: React.FC = () => {
     };
 
     const handleSmartSummary = async (task: Task) => {
-        setSummaryTask(task);
-        setSummaryLoading(true);
-        setSummaryError('');
-        setSummary('');
-        setShowSummaryDialog(true);
+        // Initialize AI operation state for this task
+        setTaskAiOperations(prev => ({
+            ...prev,
+            [task.id]: {
+                ...prev[task.id],
+                summary: {
+                    loading: true,
+                    result: null,
+                    error: '',
+                    expanded: true
+                }
+            }
+        }));
 
         try {
-            const response = await TaskService.getSmartSummary(task.id);
-            setSummary(response.summary);
+            const operation = await TaskService.startSmartSummary(task.id);
+            console.log('Summary operation started:', operation.operation_id);
+
+            // Connect to SSE for real-time updates
+            sseService.connect(
+                operation.operation_id,
+                (data) => {
+                    console.log('TaskList received SSE data:', data);
+                    if (data.status === 'completed') {
+                        console.log('Updating task with completed summary:', data.result);
+                        setTaskAiOperations(prev => ({
+                            ...prev,
+                            [task.id]: {
+                                ...prev[task.id],
+                                summary: {
+                                    loading: false,
+                                    result: data.result,
+                                    error: '',
+                                    expanded: true
+                                }
+                            }
+                        }));
+                    } else if (data.status === 'failed') {
+                        console.log('Updating task with failed summary:', data.error);
+                        setTaskAiOperations(prev => ({
+                            ...prev,
+                            [task.id]: {
+                                ...prev[task.id],
+                                summary: {
+                                    loading: false,
+                                    result: null,
+                                    error: data.error || 'Summary generation failed',
+                                    expanded: true
+                                }
+                            }
+                        }));
+                    }
+                },
+                (error) => {
+                    setTaskAiOperations(prev => ({
+                        ...prev,
+                        [task.id]: {
+                            ...prev[task.id],
+                            summary: {
+                                loading: false,
+                                result: null,
+                                error: 'Connection lost. Please try again.',
+                                expanded: true
+                            }
+                        }
+                    }));
+                }
+            );
         } catch (err) {
-            setSummaryError('Failed to generate summary');
-            console.error('Failed to generate summary:', err);
-        } finally {
-            setSummaryLoading(false);
+            setTaskAiOperations(prev => ({
+                ...prev,
+                [task.id]: {
+                    ...prev[task.id],
+                    summary: {
+                        loading: false,
+                        result: null,
+                        error: 'Failed to start summary generation',
+                        expanded: true
+                    }
+                }
+            }));
+            console.error('Failed to start summary generation:', err);
         }
     };
 
     const handleSmartRewrite = async (task: Task) => {
-        setRewriteTask(task);
-        setRewriteLoading(true);
-        setRewriteError('');
-        setRewrite(null);
-        setShowRewriteDialog(true);
+        // Initialize AI operation state for this task
+        setTaskAiOperations(prev => ({
+            ...prev,
+            [task.id]: {
+                ...prev[task.id],
+                rewrite: {
+                    loading: true,
+                    result: null,
+                    error: '',
+                    expanded: true
+                }
+            }
+        }));
 
         try {
-            const response = await TaskService.getSmartRewrite(task.id);
-            setRewrite(response);
+            const rewriteResult = await TaskService.getSmartRewrite(task.id);
+            console.log('Rewrite completed:', rewriteResult);
+
+            setTaskAiOperations(prev => ({
+                ...prev,
+                [task.id]: {
+                    ...prev[task.id],
+                    rewrite: {
+                        loading: false,
+                        result: rewriteResult,
+                        error: '',
+                        expanded: true
+                    }
+                }
+            }));
         } catch (err) {
-            setRewriteError('Failed to generate rewrite');
-            console.error('Failed to generate rewrite:', err);
-        } finally {
-            setRewriteLoading(false);
+            setTaskAiOperations(prev => ({
+                ...prev,
+                [task.id]: {
+                    ...prev[task.id],
+                    rewrite: {
+                        loading: false,
+                        result: null,
+                        error: 'Failed to get rewrite',
+                        expanded: true
+                    }
+                }
+            }));
+            console.error('Failed to get rewrite:', err);
         }
     };
 
@@ -157,6 +284,19 @@ const TaskList: React.FC = () => {
         }
         setShowTaskForm(false);
         setSelectedTask(null);
+    };
+
+    const toggleAiResult = (taskId: string, operationType: 'summary' | 'rewrite') => {
+        setTaskAiOperations(prev => ({
+            ...prev,
+            [taskId]: {
+                ...prev[taskId],
+                [operationType]: {
+                    ...prev[taskId]?.[operationType],
+                    expanded: !prev[taskId]?.[operationType]?.expanded
+                }
+            }
+        }));
     };
 
     const getStatusColor = (status: TaskStatus) => {
@@ -357,6 +497,211 @@ const TaskList: React.FC = () => {
                                         }
                                     </Typography>
                                 </Box>
+
+                                {/* AI Operations Results */}
+                                {taskAiOperations[task.id] && (
+                                    <Box mt={2}>
+                                        {/* Smart Summary */}
+                                        {(taskAiOperations[task.id].summary?.loading || 
+                                          taskAiOperations[task.id].summary?.result || 
+                                          taskAiOperations[task.id].summary?.error) && (
+                                            <Box mb={2}>
+                                                <Box 
+                                                    display="flex" 
+                                                    alignItems="center" 
+                                                    gap={1} 
+                                                    sx={{ cursor: 'pointer' }}
+                                                    onClick={() => toggleAiResult(task.id, 'summary')}
+                                                >
+                                                    <AutoAwesome fontSize="small" color="primary" />
+                                                    <Typography variant="body2" fontWeight="medium">
+                                                        Smart Summary
+                                                    </Typography>
+                                                    {taskAiOperations[task.id].summary?.loading && (
+                                                        <CircularProgress size={16} />
+                                                    )}
+                                                    {taskAiOperations[task.id].summary?.expanded ? 
+                                                        <ExpandLess fontSize="small" /> : 
+                                                        <ExpandMore fontSize="small" />
+                                                    }
+                                                </Box>
+                                                
+                                                <Collapse in={taskAiOperations[task.id].summary?.expanded}>
+                                                    <Paper 
+                                                        elevation={1} 
+                                                        sx={{ 
+                                                            p: 2, 
+                                                            mt: 1, 
+                                                            bgcolor: 'grey.50',
+                                                            border: '1px solid',
+                                                            borderColor: 'grey.200'
+                                                        }}
+                                                    >
+                                                        {taskAiOperations[task.id].summary?.loading && (
+                                                            <Box display="flex" alignItems="center" gap={1}>
+                                                                <CircularProgress size={16} />
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    Generating summary...
+                                                                </Typography>
+                                                            </Box>
+                                                        )}
+                                                        
+                                                        {taskAiOperations[task.id].summary?.error && (
+                                                            <Alert severity="error" sx={{ mb: 1 }}>
+                                                                {taskAiOperations[task.id].summary.error}
+                                                            </Alert>
+                                                        )}
+                                                        
+                                                        {taskAiOperations[task.id].summary?.result && (
+                                                            <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                                                {taskAiOperations[task.id].summary?.result?.summary}
+                                                            </Typography>
+                                                        )}
+                                                    </Paper>
+                                                </Collapse>
+                                            </Box>
+                                        )}
+
+                                        {/* Smart Rewrite */}
+                                        {(taskAiOperations[task.id].rewrite?.loading || 
+                                          taskAiOperations[task.id].rewrite?.result || 
+                                          taskAiOperations[task.id].rewrite?.error) && (
+                                            <Box>
+                                                <Box 
+                                                    display="flex" 
+                                                    alignItems="center" 
+                                                    gap={1} 
+                                                    sx={{ cursor: 'pointer' }}
+                                                    onClick={() => toggleAiResult(task.id, 'rewrite')}
+                                                >
+                                                    <EditNote fontSize="small" color="primary" />
+                                                    <Typography variant="body2" fontWeight="medium">
+                                                        Smart Rewrite
+                                                    </Typography>
+                                                    {taskAiOperations[task.id].rewrite?.loading && (
+                                                        <CircularProgress size={16} />
+                                                    )}
+                                                    {taskAiOperations[task.id].rewrite?.expanded ? 
+                                                        <ExpandLess fontSize="small" /> : 
+                                                        <ExpandMore fontSize="small" />
+                                                    }
+                                                </Box>
+                                                
+                                                <Collapse in={taskAiOperations[task.id].rewrite?.expanded}>
+                                                    <Paper 
+                                                        elevation={1} 
+                                                        sx={{ 
+                                                            p: 2, 
+                                                            mt: 1, 
+                                                            bgcolor: 'grey.50',
+                                                            border: '1px solid',
+                                                            borderColor: 'grey.200'
+                                                        }}
+                                                    >
+                                                        {taskAiOperations[task.id].rewrite?.loading && (
+                                                            <Box display="flex" alignItems="center" gap={1}>
+                                                                <CircularProgress size={16} />
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    Generating rewrite...
+                                                                </Typography>
+                                                            </Box>
+                                                        )}
+                                                        
+                                                        {taskAiOperations[task.id].rewrite?.error && (
+                                                            <Alert severity="error" sx={{ mb: 1 }}>
+                                                                {taskAiOperations[task.id].rewrite.error}
+                                                            </Alert>
+                                                        )}
+                                                        
+                                                        {taskAiOperations[task.id].rewrite?.result && (
+                                                            <Box>
+                                                                {taskAiOperations[task.id].rewrite?.result?.title && (
+                                                                    <Box mb={2}>
+                                                                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                                                                            Enhanced Title:
+                                                                        </Typography>
+                                                                        <Typography 
+                                                                            variant="body2" 
+                                                                            sx={{ 
+                                                                                p: 1, 
+                                                                                bgcolor: 'white', 
+                                                                                borderRadius: 1,
+                                                                                fontWeight: 'medium'
+                                                                            }}
+                                                                        >
+                                                                            {taskAiOperations[task.id].rewrite?.result?.title}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                )}
+                                                                
+                                                                {taskAiOperations[task.id].rewrite?.result?.user_story && (
+                                                                    <Box>
+                                                                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                                                                            User Story & Acceptance Criteria:
+                                                                        </Typography>
+                                                                        <Typography 
+                                                                            component="pre" 
+                                                                            variant="body2" 
+                                                                            sx={{ 
+                                                                                p: 1, 
+                                                                                bgcolor: 'white', 
+                                                                                borderRadius: 1,
+                                                                                whiteSpace: 'pre-wrap',
+                                                                                fontFamily: 'monospace',
+                                                                                lineHeight: 1.6,
+                                                                                fontSize: '0.75rem'
+                                                                            }}
+                                                                        >
+                                                                            {taskAiOperations[task.id].rewrite?.result?.user_story}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                )}
+                                                                
+                                                                <Box mt={2}>
+                                                                    <Button 
+                                                                        size="small" 
+                                                                        variant="contained"
+                                                                        onClick={async () => {
+                                                                            if (!taskAiOperations[task.id].rewrite?.result) return;
+                                                                            
+                                                                            try {
+                                                                                const updatedTask = await TaskService.updateTask(task.id, {
+                                                                                    title: taskAiOperations[task.id].rewrite?.result?.title || '',
+                                                                                    description: taskAiOperations[task.id].rewrite?.result?.user_story || ''
+                                                                                });
+                                                                                
+                                                                                setTasks(tasks.map(t => 
+                                                                                    t.id === updatedTask.id ? updatedTask : t
+                                                                                ));
+                                                                                
+                                                                                // Clear the rewrite result after applying
+                                                                                setTaskAiOperations(prev => ({
+                                                                                    ...prev,
+                                                                                    [task.id]: {
+                                                                                        ...prev[task.id],
+                                                                                        rewrite: {
+                                                                                            ...prev[task.id].rewrite,
+                                                                                            result: null,
+                                                                                            expanded: false
+                                                                                        }
+                                                                                    }
+                                                                                }));
+                                                                            } catch (err) {
+                                                                                console.error('Failed to apply rewrite:', err);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        Apply Rewrite
+                                                                    </Button>
+                                                                </Box>
+                                                            </Box>
+                                                        )}
+                                                    </Paper>
+                                                </Collapse>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                )}
                             </CardContent>
                         </Card>
                     </Grid>
