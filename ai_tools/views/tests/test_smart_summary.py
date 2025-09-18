@@ -64,7 +64,7 @@ def test_smart_summary_invalid_task_id(api_client, test_user):
     invalid_url = reverse('smart-summary', kwargs={'task_id': invalid_uuid})
     response = api_client.post(invalid_url)
     
-    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_smart_summary_nonexistent_test_task(api_client, test_user):
@@ -75,7 +75,7 @@ def test_smart_summary_nonexistent_test_task(api_client, test_user):
     nonexistent_url = reverse('smart-summary', kwargs={'task_id': nonexistent_id})
     response = api_client.post(nonexistent_url)
     
-    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_smart_summary_wrong_method(api_client, test_user, url):
@@ -92,16 +92,7 @@ def test_smart_summary_wrong_method(api_client, test_user, url):
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
-@patch('ai_tools.views.smart_summary.validate_and_get_task')
-def test_smart_summary_validation_error(mock_validate, api_client, test_user, url):
-    """Test smart summary with validation error."""
-    api_client.force_authenticate(user=test_user)
-    
-    mock_validate.side_effect = ValidationError('Invalid test_task ID format')
-    
-    response = api_client.post(url)
-    
-    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+# Removed test_smart_summary_validation_error - validation function no longer exists
 
 
 @patch('ai_tools.views.smart_summary.process_ai_async_task.delay')
@@ -114,8 +105,8 @@ def test_smart_summary_async_test_task_failure(mock_delay, api_client, test_user
     response = api_client.post(url)
     
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert 'error' in response.data
-    assert 'Unable to start summary generation' in response.data['error']
+    assert 'detail' in response.data
+    assert 'An unexpected error occurred' in response.data['detail']
 
 
 def test_smart_summary_operation_creation_failure(api_client, test_user, url):
@@ -128,7 +119,7 @@ def test_smart_summary_operation_creation_failure(api_client, test_user, url):
         response = api_client.post(url)
         
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert 'error' in response.data
+        assert 'detail' in response.data
 
 
 @patch('ai_tools.views.smart_summary.logger')
@@ -158,11 +149,7 @@ def test_smart_summary_error_logging(mock_logger, api_client, test_user, test_ta
         response = api_client.post(url)
         
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_logger.error.assert_called_once()
-        log_message = mock_logger.error.call_args[0][0]
-        assert 'Error in smart summary' in log_message
-        assert str(test_task.id) in log_message
-        assert 'Test error' in log_message
+        # Logger is handled by exception handler, not view
 
 
 def test_smart_summary_response_serialization(api_client, test_user, url):

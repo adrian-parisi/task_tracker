@@ -17,36 +17,42 @@ def api_client():
 @pytest.fixture
 def test_user(db):
     """Create a test user."""
-    return CustomUser.objects.create_user(
+    user = CustomUser.objects.create_user(
         username='testuser',
         email='test@example.com',
         first_name='Test',
-        last_name='User'
+        last_name='User',
+        password='testpass123'
     )
+    return user
 
 
 @pytest.fixture
 def other_user(db):
     """Create another test user."""
-    return CustomUser.objects.create_user(
+    user = CustomUser.objects.create_user(
         username='otheruser',
         email='other@example.com',
         first_name='Other',
-        last_name='User'
+        last_name='User',
+        password='testpass123'
     )
+    return user
 
 
 @pytest.fixture
 def admin_user(db):
     """Create an admin user."""
-    return CustomUser.objects.create_user(
+    user = CustomUser.objects.create_user(
         username='admin',
         email='admin@example.com',
         first_name='Admin',
         last_name='User',
+        password='testpass123',
         is_staff=True,
         is_superuser=True
     )
+    return user
 
 
 @pytest.fixture

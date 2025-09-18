@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def custom_exception_handler(exc: Exception, context: Dict[str, Any]) -> Response | None:
     """
-    Custom exception handler that returns standardized error responses.
+    Custom exception handler that returns standardized error responses for the entire codebase.
     
     Handles:
     - DRF validation errors (400)

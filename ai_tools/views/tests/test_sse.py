@@ -44,10 +44,10 @@ def test_ai_operation_sse_success(api_client, test_user, ai_operation):
     assert data['error'] == ''
 
 
-def test_ai_operation_sse_completed(api_client, test_user, completed_operation):
+def test_ai_operation_sse_completed(api_client, test_user, completed_ai_operation):
     """Test AI operation SSE with completed operation."""
     api_client.force_login(test_user)
-    url = reverse('ai-operation-sse', kwargs={'operation_id': completed_operation.id})
+    url = reverse('ai-operation-sse', kwargs={'operation_id': completed_ai_operation.id})
     
     response = api_client.get(url)
     
@@ -60,10 +60,10 @@ def test_ai_operation_sse_completed(api_client, test_user, completed_operation):
     assert data['error'] == ''
 
 
-def test_ai_operation_sse_failed(api_client, test_user, failed_operation):
+def test_ai_operation_sse_failed(api_client, test_user, failed_ai_operation):
     """Test AI operation SSE with failed operation."""
     api_client.force_login(test_user)
-    url = reverse('ai-operation-sse', kwargs={'operation_id': failed_operation.id})
+    url = reverse('ai-operation-sse', kwargs={'operation_id': failed_ai_operation.id})
     
     response = api_client.get(url)
     
@@ -76,10 +76,10 @@ def test_ai_operation_sse_failed(api_client, test_user, failed_operation):
     assert data['error'] == 'Test error message'
 
 
-def test_ai_operation_sse_processing(api_client, test_user, processing_operation):
+def test_ai_operation_sse_processing(api_client, test_user, processing_ai_operation):
     """Test AI operation SSE with processing operation."""
     api_client.force_login(test_user)
-    url = reverse('ai-operation-sse', kwargs={'operation_id': processing_operation.id})
+    url = reverse('ai-operation-sse', kwargs={'operation_id': processing_ai_operation.id})
     
     response = api_client.get(url)
     
@@ -119,9 +119,9 @@ def test_ai_operation_sse_nonexistent_operation(api_client, test_user):
     assert 'Operation not found' in data['error']
 
 
-def test_ai_operation_sse_wrong_test_user(api_client, other_test_user, ai_operation):
+def test_ai_operation_sse_wrong_test_user(api_client, other_user, ai_operation):
     """Test AI operation SSE with wrong test_user (operation belongs to different test_user)."""
-    api_client.force_login(other_test_user)
+    api_client.force_login(other_user)
     url = reverse('ai-operation-sse', kwargs={'operation_id': ai_operation.id})
     
     response = api_client.get(url)
@@ -137,7 +137,8 @@ def test_ai_operation_sse_wrong_test_user(api_client, other_test_user, ai_operat
 def test_ai_operation_sse_invalid_uuid(api_client, test_user):
     """Test AI operation SSE with invalid UUID."""
     api_client.force_login(test_user)
-    url = reverse('ai-operation-sse', kwargs={'operation_id': '00000000-0000-0000-0000-000000000000'})
+    # Use a truly invalid UUID format that will cause URL pattern to not match
+    url = '/api/ai-operations/invalid-uuid/stream/'
     
     response = api_client.get(url)
     
@@ -180,10 +181,10 @@ def test_test_sse_success(api_client, test_user, ai_operation):
     assert data['user_id'] == test_user.id
 
 
-def test_test_sse_completed_operation(api_client, test_user, completed_operation):
+def test_test_sse_completed_operation(api_client, test_user, completed_ai_operation):
     """Test test SSE with completed operation."""
     api_client.force_login(test_user)
-    url = reverse('test-sse', kwargs={'operation_id': completed_operation.id})
+    url = reverse('test-sse', kwargs={'operation_id': completed_ai_operation.id})
     
     response = api_client.get(url)
     
@@ -192,15 +193,15 @@ def test_test_sse_completed_operation(api_client, test_user, completed_operation
     
     data = json.loads(response.content)
     assert data['status'] == 'success'
-    assert data['operation_id'] == str(completed_operation.id)
+    assert data['operation_id'] == str(completed_ai_operation.id)
     assert data['operation_status'] == 'COMPLETED'
     assert data['user_id'] == test_user.id
 
 
-def test_test_sse_failed_operation(api_client, test_user, failed_operation):
+def test_test_sse_failed_operation(api_client, test_user, failed_ai_operation):
     """Test test SSE with failed operation."""
     api_client.force_login(test_user)
-    url = reverse('test-sse', kwargs={'operation_id': failed_operation.id})
+    url = reverse('test-sse', kwargs={'operation_id': failed_ai_operation.id})
     
     response = api_client.get(url)
     
@@ -209,7 +210,7 @@ def test_test_sse_failed_operation(api_client, test_user, failed_operation):
     
     data = json.loads(response.content)
     assert data['status'] == 'success'
-    assert data['operation_id'] == str(failed_operation.id)
+    assert data['operation_id'] == str(failed_ai_operation.id)
     assert data['operation_status'] == 'FAILED'
     assert data['user_id'] == test_user.id
 
@@ -243,9 +244,9 @@ def test_test_sse_nonexistent_operation(api_client, test_user):
     assert data['user_id'] == test_user.id
 
 
-def test_test_sse_wrong_test_user(api_client, other_test_user, ai_operation):
+def test_test_sse_wrong_test_user(api_client, other_user, ai_operation):
     """Test test SSE with wrong test_user (operation belongs to different test_user)."""
-    api_client.force_login(other_test_user)
+    api_client.force_login(other_user)
     url = reverse('test-sse', kwargs={'operation_id': ai_operation.id})
     
     response = api_client.get(url)
@@ -257,13 +258,14 @@ def test_test_sse_wrong_test_user(api_client, other_test_user, ai_operation):
     assert data['status'] == 'error'
     assert 'Operation not found' in data['error']
     assert data['operation_id'] == str(ai_operation.id)
-    assert data['user_id'] == other_test_user.id
+    assert data['user_id'] == other_user.id
 
 
 def test_test_sse_invalid_uuid(api_client, test_user):
     """Test test SSE with invalid UUID."""
     api_client.force_login(test_user)
-    url = reverse('test-sse', kwargs={'operation_id': '00000000-0000-0000-0000-000000000000'})
+    # Use a truly invalid UUID format that will cause URL pattern to not match
+    url = '/api/ai-operations/invalid-uuid/test/'
     
     response = api_client.get(url)
     
@@ -462,7 +464,7 @@ def test_sse_urls_handle_malformed_json(api_client, test_user, ai_operation):
     
     # Test with operation that has malformed result JSON
     operation = AIOperation.objects.create(
-        task=ai_operation.test_task,
+        task=ai_operation.task,
         operation_type='SUMMARY',
         status='COMPLETED',
         result={'malformed': 'json'},  # This should be fine

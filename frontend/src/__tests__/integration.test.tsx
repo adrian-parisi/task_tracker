@@ -62,7 +62,11 @@ Acceptance Criteria:
 - Failed login attempts are tracked and limited`
             };
 
-            mockTaskService.getSmartSummary.mockResolvedValue(mockSummary);
+            mockTaskService.startSmartSummary.mockResolvedValue({
+                operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                status: 'pending',
+                sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
+            });
             mockTaskService.getSmartEstimate.mockResolvedValue(mockEstimate);
             mockTaskService.getSmartRewrite.mockResolvedValue(mockRewrite);
 
@@ -116,7 +120,11 @@ Acceptance Criteria:
                 summary: 'Task summary generated successfully.'
             };
 
-            mockTaskService.getSmartSummary.mockResolvedValue(mockSummary);
+            mockTaskService.startSmartSummary.mockResolvedValue({
+                operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                status: 'pending',
+                sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
+            });
             mockTaskService.getSmartEstimate.mockRejectedValue(new Error('Failed to calculate smart estimate'));
             mockTaskService.getSmartRewrite.mockRejectedValue(new Error('Task not found for rewrite generation'));
 
@@ -155,9 +163,13 @@ Acceptance Criteria:
                 rationale: 'Estimate result'
             };
 
-            mockTaskService.getSmartSummary.mockImplementation(() => 
+            mockTaskService.startSmartSummary.mockImplementation(() => 
                 new Promise(resolve => {
-                    setTimeout(() => resolve(mockSummary), 100);
+                    setTimeout(() => resolve({
+                        operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                        status: 'pending',
+                        sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
+                    }), 100);
                 })
             );
 
@@ -192,7 +204,7 @@ Acceptance Criteria:
         });
 
         it('should handle authentication errors properly', async () => {
-            mockTaskService.getSmartSummary.mockRejectedValue(new Error('Failed to generate smart summary'));
+            mockTaskService.startSmartSummary.mockRejectedValue(new Error('Failed to generate smart summary'));
 
             render(<TaskDetail taskId={mockTask.id} />);
 
@@ -208,9 +220,13 @@ Acceptance Criteria:
         });
 
         it('should maintain button states correctly during operations', async () => {
-            mockTaskService.getSmartSummary.mockImplementation(() => 
+            mockTaskService.startSmartSummary.mockImplementation(() => 
                 new Promise(resolve => {
-                    setTimeout(() => resolve({ summary: 'Test summary' }), 200);
+                    setTimeout(() => resolve({
+                        operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                        status: 'pending',
+                        sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
+                    }), 200);
                 })
             );
 
@@ -299,9 +315,13 @@ Acceptance Criteria:
     describe('Error Recovery', () => {
         it('should allow retry after error', async () => {
             // First call fails, second succeeds
-            mockTaskService.getSmartSummary
+            mockTaskService.startSmartSummary
                 .mockRejectedValueOnce(new Error('Failed to generate smart summary'))
-                .mockResolvedValueOnce({ summary: 'Retry successful' });
+                .mockResolvedValueOnce({
+                    operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                    status: 'pending',
+                    sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
+                });
 
             render(<TaskDetail taskId={mockTask.id} />);
 

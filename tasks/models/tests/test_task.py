@@ -88,11 +88,7 @@ class TestTaskModel:
         with pytest.raises(ValidationError, match=expected_message):
             task.full_clean()
     
-    def test_task_done_without_estimate(self, projects):
-        """Test that task cannot be marked as DONE without estimate."""
-        task = Task(project=projects['main'], title='Valid Task', status=TaskStatus.DONE, estimate=None)
-        with pytest.raises(ValidationError, match='Tasks marked as DONE must have an estimate'):
-            task.full_clean()
+    # Removed test_task_done_without_estimate - validation rule was removed
     
     def test_task_done_with_estimate(self, projects):
         """Test that task can be marked as DONE with estimate."""

@@ -13,9 +13,9 @@ const mockTaskService = TaskService as jest.Mocked<typeof TaskService>;
 jest.mock('../SummaryDisplay', () => ({
     __esModule: true,
     default: function MockSummaryDisplay({ summary, loading, error }: any) {
-        if (loading) return React.createElement('div', { 'data-testid': 'summary-loading' }, 'Loading summary...');
-        if (error) return React.createElement('div', { 'data-testid': 'summary-error' }, error);
-        if (summary) return React.createElement('div', { 'data-testid': 'summary-display' }, summary);
+        if (loading) return <div data-testid="summary-loading">Loading summary...</div>;
+        if (error) return <div data-testid="summary-error">{error}</div>;
+        if (summary) return <div data-testid="summary-display">{summary}</div>;
         return null;
     }
 }));
@@ -23,9 +23,9 @@ jest.mock('../SummaryDisplay', () => ({
 jest.mock('../EstimateDisplay', () => ({
     __esModule: true,
     default: function MockEstimateDisplay({ estimate, loading, error }: any) {
-        if (loading) return React.createElement('div', { 'data-testid': 'estimate-loading' }, 'Loading estimate...');
-        if (error) return React.createElement('div', { 'data-testid': 'estimate-error' }, error);
-        if (estimate) return React.createElement('div', { 'data-testid': 'estimate-display' }, JSON.stringify(estimate));
+        if (loading) return <div data-testid="estimate-loading">Loading estimate...</div>;
+        if (error) return <div data-testid="estimate-error">{error}</div>;
+        if (estimate) return <div data-testid="estimate-display">{JSON.stringify(estimate)}</div>;
         return null;
     }
 }));
@@ -33,9 +33,9 @@ jest.mock('../EstimateDisplay', () => ({
 jest.mock('../RewriteDisplay', () => ({
     __esModule: true,
     default: function MockRewriteDisplay({ rewrite, loading, error }: any) {
-        if (loading) return React.createElement('div', { 'data-testid': 'rewrite-loading' }, 'Loading rewrite...');
-        if (error) return React.createElement('div', { 'data-testid': 'rewrite-error' }, error);
-        if (rewrite) return React.createElement('div', { 'data-testid': 'rewrite-display' }, JSON.stringify(rewrite));
+        if (loading) return <div data-testid="rewrite-loading">Loading rewrite...</div>;
+        if (error) return <div data-testid="rewrite-error">{error}</div>;
+        if (rewrite) return <div data-testid="rewrite-display">{JSON.stringify(rewrite)}</div>;
         return null;
     }
 }));

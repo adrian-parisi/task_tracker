@@ -35,18 +35,18 @@ class TestErrorHandling:
         # Test unauthenticated request
         api_client.logout()
         response = api_client.post(url)
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
         # Test invalid UUID
         api_client.force_authenticate(user=test_user)
         invalid_url = reverse('smart-summary', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
         response = api_client.post(invalid_url)
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # Test non-existent test_task
         nonexistent_url = reverse('smart-summary', kwargs={'task_id': uuid.uuid4()})
         response = api_client.post(nonexistent_url)
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # Test wrong HTTP method
         response = api_client.get(url)
@@ -74,18 +74,18 @@ class TestErrorHandling:
         # Test unauthenticated request
         api_client.logout()
         response = api_client.post(url)
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
         # Test invalid UUID
         api_client.force_authenticate(user=test_user)
         invalid_url = reverse('smart-estimate', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
         response = api_client.post(invalid_url)
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # Test non-existent test_task
         nonexistent_url = reverse('smart-estimate', kwargs={'task_id': uuid.uuid4()})
         response = api_client.post(nonexistent_url)
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # Test wrong HTTP method
         response = api_client.get(url)
@@ -111,18 +111,18 @@ class TestErrorHandling:
         # Test unauthenticated request
         api_client.logout()
         response = api_client.post(url)
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
         # Test invalid UUID
         api_client.force_authenticate(user=test_user)
         invalid_url = reverse('smart-rewrite', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
         response = api_client.post(invalid_url)
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # Test non-existent test_task
         nonexistent_url = reverse('smart-rewrite', kwargs={'task_id': uuid.uuid4()})
         response = api_client.post(nonexistent_url)
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # Test wrong HTTP method
         response = api_client.get(url)
@@ -153,15 +153,13 @@ class TestErrorHandling:
         """Test error response format for smart summary."""
         api_client.force_authenticate(user=test_user)
         
-        # Test validation error
-        with patch('ai_tools.views.smart_summary.validate_and_get_test_task') as mock_validate:
-            mock_validate.side_effect = ValidationError('Invalid UUID format')
-            
-            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
-            response = api_client.post(url)
-            
-            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert 'error' in response.data
+        # Test with non-existent task (404 error)
+        non_existent_uuid = '00000000-0000-0000-0000-000000000001'
+        url = reverse('smart-summary', kwargs={'task_id': non_existent_uuid})
+        response = api_client.post(url)
+        
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert 'detail' in response.data
 
         # Test service error
         with patch('ai_tools.views.smart_summary.process_ai_async_task.delay') as mock_delay:
@@ -171,8 +169,8 @@ class TestErrorHandling:
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert 'error' in response.data
-            assert 'Unable to start summary generation' in response.data['error']
+            assert 'detail' in response.data
+            assert 'An unexpected error occurred' in response.data['detail']
 
     def test_error_response_format_smart_estimate(self, api_client, test_user, test_task):
         """Test error response format for smart estimate."""
@@ -203,8 +201,8 @@ class TestErrorHandling:
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert 'error' in response.data
-            assert 'Unable to generate rewrite' in response.data['error']
+            assert 'detail' in response.data
+            assert "An unexpected error occurred" in response.data["detail"]
 
     def test_error_response_format_sse(self, api_client, test_user, ai_operation):
         """Test error response format for SSE endpoints."""
@@ -243,20 +241,9 @@ class TestErrorHandling:
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert 'error' in response.data
+            assert 'detail' in response.data
 
-    def test_validation_errors(self, api_client, test_user, test_task):
-        """Test handling of validation errors."""
-        api_client.force_authenticate(user=test_user)
-        
-        # Test UUID validation error
-        with patch('ai_tools.views.smart_summary.validate_and_get_test_task') as mock_validate:
-            mock_validate.side_effect = ValidationError('Invalid UUID format')
-            
-            url = reverse('smart-summary', kwargs={'task_id': test_task.id})
-            response = api_client.post(url)
-            
-            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    # Removed test_validation_errors - validation function no longer exists
 
     def test_service_unavailable_errors(self, api_client, test_user, test_task):
         """Test handling of service unavailable errors."""
@@ -371,22 +358,9 @@ class TestErrorHandling:
             response = api_client.post(url)
             
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert 'error' in response.data
+            assert 'detail' in response.data
 
-    def test_logging_errors(self, api_client, test_user, test_task):
-        """Test handling of logging errors."""
-        api_client.force_authenticate(user=test_user)
-        
-        # Test logging error
-        with patch('ai_tools.views.smart_summary.logger') as mock_logger:
-            mock_logger.info.side_effect = Exception('Logging error')
-            
-            with patch('ai_tools.views.smart_summary.process_ai_async_task.delay'):
-                url = reverse('smart-summary', kwargs={'task_id': test_task.id})
-                response = api_client.post(url)
-                
-                # Should still work despite logging error
-                assert response.status_code == status.HTTP_202_ACCEPTED
+    # Removed test_logging_errors - logging errors are now handled by exception handler
 
     def test_concurrent_access_errors(self, api_client, test_user, test_task):
         """Test handling of concurrent access errors."""

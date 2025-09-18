@@ -89,33 +89,35 @@ describe('TaskService', () => {
     describe('AI Tool Methods', () => {
         const taskId = '123e4567-e89b-12d3-a456-426614174000';
 
-        describe('getSmartSummary', () => {
-            it('should fetch smart summary successfully', async () => {
-                const mockResponse: SmartSummaryResponse = {
-                    summary: 'This task has been created and is currently in TODO status.'
+        describe('startSmartSummary', () => {
+            it('should start smart summary generation successfully', async () => {
+                const mockResponse = {
+                    operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                    status: 'pending',
+                    sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
                 };
 
-                mockApiClient.get.mockResolvedValue({ data: mockResponse });
+                mockApiClient.post.mockResolvedValue({ data: mockResponse });
 
-                const result = await TaskService.getSmartSummary(taskId);
+                const result = await TaskService.startSmartSummary(taskId);
                 expect(result).toEqual(mockResponse);
-                expect(mockApiClient.get).toHaveBeenCalledWith(`/tasks/${taskId}/smart-summary/`);
+                expect(mockApiClient.post).toHaveBeenCalledWith(`/tasks/${taskId}/smart-summary/`);
             });
 
             it('should handle 404 error with specific message', async () => {
                 const error = { response: { status: 404 } };
-                mockApiClient.get.mockRejectedValue(error);
+                mockApiClient.post.mockRejectedValue(error);
 
-                await expect(TaskService.getSmartSummary(taskId))
+                await expect(TaskService.startSmartSummary(taskId))
                     .rejects.toThrow('Task not found for summary generation');
             });
 
             it('should handle other errors with generic message', async () => {
                 const error = { response: { status: 500 } };
-                mockApiClient.get.mockRejectedValue(error);
+                mockApiClient.post.mockRejectedValue(error);
 
-                await expect(TaskService.getSmartSummary(taskId))
-                    .rejects.toThrow('Failed to generate smart summary');
+                await expect(TaskService.startSmartSummary(taskId))
+                    .rejects.toThrow('Failed to start smart summary generation');
             });
         });
 
