@@ -51,10 +51,7 @@ describe('TaskDetail', () => {
         reporter: 2,
         assignee_detail: { id: 1, username: 'testuser', first_name: 'Test', last_name: 'User', display_name: 'Test User' },
         reporter_detail: { id: 2, username: 'reporter', first_name: 'Reporter', last_name: 'User', display_name: 'Reporter User' },
-        tags: [
-            { id: 1, name: 'frontend' },
-            { id: 2, name: 'urgent' }
-        ],
+        tags: ['frontend', 'urgent'],
         created_at: '2023-01-01T00:00:00Z',
         updated_at: '2023-01-01T00:00:00Z'
     };
@@ -126,20 +123,23 @@ describe('TaskDetail', () => {
                 const mockSummary: SmartSummaryResponse = {
                     summary: 'This task has been created and is in TODO status.'
                 };
-                mockTaskService.getSmartSummary.mockResolvedValue(mockSummary);
+                mockTaskService.startSmartSummary.mockResolvedValue({
+                    operation_id: '123e4567-e89b-12d3-a456-426614174000',
+                    status: 'pending',
+                    sse_url: '/api/ai-operations/123e4567-e89b-12d3-a456-426614174000/stream/'
+                });
 
                 const summaryButton = screen.getByText('Smart Summary');
                 await userEvent.click(summaryButton);
 
-                expect(mockTaskService.getSmartSummary).toHaveBeenCalledWith('123');
+                expect(mockTaskService.startSmartSummary).toHaveBeenCalledWith('123');
 
-                await waitFor(() => {
-                    expect(screen.getByTestId('summary-display')).toBeInTheDocument();
-                });
+                // Smart summary now uses SSE, so we just verify the API was called
+                // The actual summary display would come through SSE events
             });
 
             it('should show loading state during summary generation', async () => {
-                mockTaskService.getSmartSummary.mockImplementation(() => new Promise(() => { }));
+                mockTaskService.startSmartSummary.mockImplementation(() => new Promise(() => { }));
 
                 const summaryButton = screen.getByText('Smart Summary');
                 await userEvent.click(summaryButton);
@@ -150,7 +150,7 @@ describe('TaskDetail', () => {
             });
 
             it('should show error message when summary generation fails', async () => {
-                mockTaskService.getSmartSummary.mockRejectedValue(new Error('Failed to generate summary'));
+                mockTaskService.startSmartSummary.mockRejectedValue(new Error('Failed to generate summary'));
 
                 const summaryButton = screen.getByText('Smart Summary');
                 await userEvent.click(summaryButton);
@@ -257,7 +257,7 @@ describe('TaskDetail', () => {
                 expect(screen.getByText('Test Task')).toBeInTheDocument();
             });
 
-            const backButton = screen.getByLabelText('ArrowBack');
+            const backButton = screen.getByTestId('ArrowBackIcon');
             await userEvent.click(backButton);
 
             expect(mockOnBack).toHaveBeenCalled();
@@ -308,7 +308,7 @@ describe('TaskDetail', () => {
         });
 
         it('should not show assignee when not provided', async () => {
-            const taskWithoutAssignee = { ...mockTask, assignee: undefined };
+            const taskWithoutAssignee = { ...mockTask, assignee: undefined, assignee_detail: null };
             mockTaskService.getTask.mockResolvedValue(taskWithoutAssignee);
 
             render(<TaskDetail taskId="123" />);

@@ -91,8 +91,6 @@ def test_smart_estimate_wrong_method(api_client, test_user, url):
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
-# Removed test_smart_estimate_validation_error - validation function no longer exists
-
 
 def test_smart_estimate_ai_service_failure(api_client, test_user, test_task, url):
     """Test smart estimate when AI service fails."""

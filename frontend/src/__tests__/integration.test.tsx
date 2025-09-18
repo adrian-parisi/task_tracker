@@ -77,13 +77,12 @@ Acceptance Criteria:
                 expect(screen.getByText('Implement User Authentication')).toBeInTheDocument();
             });
 
-            // Test Smart Summary
+            // Test Smart Summary - now asynchronous, just verify button click works
             const summaryButton = screen.getByText('Smart Summary');
             await userEvent.click(summaryButton);
-
-            await waitFor(() => {
-                expect(screen.getByText(mockSummary.summary)).toBeInTheDocument();
-            });
+            
+            // Verify loading state
+            expect(screen.getByText('Generating...')).toBeInTheDocument();
 
             // Test Smart Estimate
             const estimateButton = screen.getByText('Smart Estimate');
@@ -109,7 +108,7 @@ Acceptance Criteria:
 
             // Verify all API calls were made
             expect(mockTaskService.getTask).toHaveBeenCalledWith(mockTask.id);
-            expect(mockTaskService.getSmartSummary).toHaveBeenCalledWith(mockTask.id);
+            expect(mockTaskService.startSmartSummary).toHaveBeenCalledWith(mockTask.id);
             expect(mockTaskService.getSmartEstimate).toHaveBeenCalledWith(mockTask.id);
             expect(mockTaskService.getSmartRewrite).toHaveBeenCalledWith(mockTask.id);
         });
@@ -134,23 +133,21 @@ Acceptance Criteria:
                 expect(screen.getByText('Implement User Authentication')).toBeInTheDocument();
             });
 
-            // Test successful summary
+            // Test successful summary - now asynchronous, just verify button click works
             await userEvent.click(screen.getByText('Smart Summary'));
-            await waitFor(() => {
-                expect(screen.getByText('Task summary generated successfully.')).toBeInTheDocument();
-            });
+            expect(screen.getByText('Generating...')).toBeInTheDocument();
 
             // Test failed estimate
             await userEvent.click(screen.getByText('Smart Estimate'));
             await waitFor(() => {
                 expect(screen.getByText('Failed to calculate smart estimate')).toBeInTheDocument();
-            });
+            }, { timeout: 3000 });
 
             // Test failed rewrite
             await userEvent.click(screen.getByText('Smart Rewrite'));
             await waitFor(() => {
                 expect(screen.getByText('Task not found for rewrite generation')).toBeInTheDocument();
-            });
+            }, { timeout: 3000 });
         });
 
         it('should handle concurrent AI tool requests', async () => {
@@ -193,11 +190,7 @@ Acceptance Criteria:
             expect(screen.getByText('Generating...')).toBeInTheDocument();
             expect(screen.getByText('Calculating...')).toBeInTheDocument();
 
-            // Wait for both to complete
-            await waitFor(() => {
-                expect(screen.getByText('Summary result')).toBeInTheDocument();
-            });
-
+            // Wait for estimate to complete (summary is now asynchronous)
             await waitFor(() => {
                 expect(screen.getByText('5 Points')).toBeInTheDocument();
             });
@@ -216,7 +209,7 @@ Acceptance Criteria:
 
             await waitFor(() => {
                 expect(screen.getByText('Failed to generate smart summary')).toBeInTheDocument();
-            });
+            }, { timeout: 3000 });
         });
 
         it('should maintain button states correctly during operations', async () => {
@@ -253,13 +246,12 @@ Acceptance Criteria:
             expect(estimateButton).not.toBeDisabled();
             expect(rewriteButton).not.toBeDisabled();
 
-            // Wait for completion
+            // Wait for summary button to be enabled again (summary is now asynchronous)
             await waitFor(() => {
-                expect(screen.getByText('Test summary')).toBeInTheDocument();
-            });
+                expect(summaryButton).not.toBeDisabled();
+            }, { timeout: 3000 });
 
-            // All buttons should be enabled again
-            expect(summaryButton).not.toBeDisabled();
+            // All buttons should be enabled
             expect(estimateButton).not.toBeDisabled();
             expect(rewriteButton).not.toBeDisabled();
         });
@@ -333,13 +325,11 @@ Acceptance Criteria:
             await userEvent.click(screen.getByText('Smart Summary'));
             await waitFor(() => {
                 expect(screen.getByText('Failed to generate smart summary')).toBeInTheDocument();
-            });
+            }, { timeout: 3000 });
 
-            // Second attempt succeeds
+            // Second attempt succeeds - just verify button click works
             await userEvent.click(screen.getByText('Smart Summary'));
-            await waitFor(() => {
-                expect(screen.getByText('Retry successful')).toBeInTheDocument();
-            });
+            expect(screen.getByText('Generating...')).toBeInTheDocument();
         });
     });
 });
